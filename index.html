@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en-AU" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DKsKards · Graded Pokémon slabs in AUD</title>
+<meta name="description" content="Graded Pokémon slabs, each listed with recent sales, population and our condition notes. Card Hunts and memberships for Australian collectors.">
+<script>try{var t=localStorage.getItem('dksKardsTheme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&text=DKsard%20&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="home.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div data-chrome="top"></div>
+
+<main id="main">
+  <!-- 1. Hero: the viewing room -->
+  <section class="hero" id="hero" aria-labelledby="heroH1">
+    <div class="wrap">
+      <div>
+        <h1 id="heroH1" data-copy="heroHeadline">Researched before it's listed.</h1>
+        <p class="hero-sub" id="heroSub" data-copy="heroSub">Every slab here comes with the recent sales, the population and our notes from under the loupe.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-lamp" id="heroCta" href="shop.html" data-copy="heroCta">Browse the slabs</a>
+          <a class="btn btn-text" href="#hunt" data-copy="heroCta2">Start a Card Hunt</a>
+        </div>
+      </div>
+      <div class="hero-stage" id="heroStage"></div>
+    </div>
+  </section>
+
+  <!-- 2. On the table -->
+  <section class="section" aria-labelledby="railTitle" style="padding-top:var(--s-6)">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 id="railTitle" data-copy="railTitle">On the table</h2>
+          <p id="dropNote" hidden></p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center">
+          <a class="btn btn-text" href="shop.html">See all slabs</a>
+          <div class="rail-arrows">
+            <button class="icon-btn" type="button" id="railPrev" aria-label="Previous slabs"></button>
+            <button class="icon-btn" type="button" id="railNext" aria-label="Next slabs"></button>
+          </div>
+        </div>
+      </div>
+      <div class="rail" id="rail" tabindex="0" aria-label="Slabs for sale"></div>
+    </div>
+  </section>
+
+  <!-- 3. The grade ladder -->
+  <section class="section" aria-labelledby="ladderTitle">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="ladderTitle" data-copy="ladderTitle">What a grade is worth</h2>
+        <div class="chips" id="ladderPick" role="group" aria-label="Example card"></div>
+      </div>
+      <ol class="ladder num" id="ladder" aria-label="Prices by grade"></ol>
+      <p class="ladder-caption" data-copy="ladderCaption">The same card, priced by grade. The jump from 9 to 10 is where most of the value sits, and where our notes matter most.</p>
+    </div>
+  </section>
+
+  <!-- 4. What's moving -->
+  <section class="section" aria-labelledby="movingTitle">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 id="movingTitle" data-copy="marketTitle">What's moving</h2>
+          <p>30-day change in the market median for the slabs we track.</p>
+        </div>
+        <a class="btn btn-line" href="market.html">Open the Market board</a>
+      </div>
+      <div class="movers" id="movers"></div>
+    </div>
+  </section>
+
+  <!-- 5. Card Hunt -->
+  <section class="section" id="hunt" aria-labelledby="huntTitle">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 id="huntTitle" data-copy="huntTitle">Tell us what you’re after</h2>
+          <p>A Card Hunt is a written brief back from us: what to buy, which grade, what to pay and where. <span id="huntPriceNote"></span></p>
+        </div>
+      </div>
+      <form class="brief" id="briefForm" novalidate>
+        I have <label class="sr-only" for="bBudget">Budget in Australian dollars</label><input class="blank num" id="bBudget" name="budget" inputmode="numeric" placeholder="A$1,000" size="7" required>
+        to spend on <label class="sr-only" for="bTarget">Card, set or character</label><input class="blank" id="bTarget" name="target" placeholder="Charizard, a set, anything" size="16" required>.
+        <span id="briefMore" class="brief-more" hidden>
+          I want it <label class="sr-only" for="bForm">Raw or graded</label><select class="blank" id="bForm" name="form"><option>graded</option><option>raw</option><option>either</option></select>
+          and plan to hold it for <label class="sr-only" for="bHold">How long you plan to hold</label><select class="blank" id="bHold" name="hold"><option>1–3 years</option><option>under a year</option><option>longer</option></select>.
+          Reach me at <label class="sr-only" for="bEmail">Your email</label><input class="blank" id="bEmail" name="email" type="email" placeholder="you@email.com" size="16" autocomplete="email" required>.
+        </span>
+        <div class="brief-actions" style="font-size:1rem;font-weight:450">
+          <button class="btn btn-lamp" type="submit" data-copy="huntButton">Send my brief</button>
+          <span class="muted small" id="briefTerms"></span>
+        </div>
+        <p class="brief-confirm" id="briefConfirm" role="status" hidden style="font-size:1rem;font-weight:450"></p>
+      </form>
+
+      <ol class="steps">
+        <li class="panel"><h3>Send the brief</h3><p>Budget, the card or theme, and how long you’ll hold. Two minutes.</p></li>
+        <li class="panel"><h3>We research</h3><p>Recent AU and US sales, population, grade spreads and what’s actually available.</p></li>
+        <li class="panel"><h3>You get the report</h3><p>A short written call: which copy, which grade, the price to pay and the price to walk away at.</p></li>
+        <li class="panel"><h3>Buy, or have us source it</h3><p>Buy it yourself, or we find and inspect it for a sourcing fee.</p></li>
+      </ol>
+
+      <div style="margin-top:var(--s-7)">
+        <h3 style="margin-bottom:var(--s-3)">What a report looks like</h3>
+        <p class="muted small" style="margin-bottom:var(--s-3)">Sample calls from a recent report. Every report covers the cards you send.</p>
+        <table class="report num" id="reportTable">
+          <thead><tr><th>Card</th><th>Grade</th><th class="n">Market median</th><th>Our call</th><th>Why</th></tr></thead>
+          <tbody id="reportCardBody"></tbody>
+        </table>
+      </div>
+
+      <div class="services">
+        <div class="panel">
+          <h3>Portfolio audit</h3>
+          <p class="price num" id="auditPrice"></p>
+          <p class="muted">Send us your collection list. We return Keep, Grade, Upgrade or Sell on every card, with the sales behind each call.</p>
+          <a class="btn btn-line" id="auditLink" href="#">Ask for an audit</a>
+        </div>
+        <div class="panel">
+          <h3>Sourcing</h3>
+          <p class="muted" id="sourcingNote">We find the copy, inspect it and arrange insured delivery. You pay the card price plus a fee.</p>
+          <label class="field"><span>Card value</span><input type="range" id="calcValue" min="200" max="20000" step="100" value="2600" aria-describedby="calcOut"></label>
+          <div class="calc-out num" id="calcOut" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Membership -->
+  <section class="section" id="membership" aria-labelledby="memberTitle">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <h2 id="memberTitle" data-copy="membershipTitle">Stay a step ahead of the AU market</h2>
+          <p>Cancel any time from your account.</p>
+        </div>
+        <div class="billing" role="group" aria-label="Billing period">
+          <button type="button" aria-pressed="true" data-billing="monthly">Monthly</button>
+          <button type="button" aria-pressed="false" data-billing="yearly">Yearly</button>
+        </div>
+      </div>
+      <div class="chips tier-switch" id="tierSwitch" role="tablist" aria-label="Membership tier"></div>
+      <div class="tiers" id="tiers" data-mobile></div>
+      <details style="margin-top:var(--s-5)">
+        <summary class="btn btn-text" style="display:inline-flex;cursor:pointer">Compare all</summary>
+        <div class="compare-wrap"><table class="compare" id="compare"></table></div>
+      </details>
+      <p class="muted small" style="margin-top:var(--s-4)">General information only. Not financial advice. Cancel any time from your account.</p>
+    </div>
+  </section>
+
+  <!-- 7. Check a cert -->
+  <section class="section" id="verify" aria-labelledby="certTitle">
+    <div class="wrap">
+      <h2 id="certTitle" data-copy="certTitle">Check a cert</h2>
+      <p class="muted" style="margin-top:8px" data-copy="certHint">Enter a PSA, CGC or BGS cert number.</p>
+      <form class="verify-form" id="verifyForm" novalidate>
+        <label class="sr-only" for="vGrader">Grader</label>
+        <select class="input" id="vGrader"><option>PSA</option><option>CGC</option><option>BGS</option></select>
+        <label class="sr-only" for="vCert">Cert number</label>
+        <input class="input num" id="vCert" inputmode="numeric" placeholder="e.g. 12345678" autocomplete="off">
+        <button class="btn btn-lamp" type="submit">Check</button>
+      </form>
+      <div class="verify-out" id="verifyOut" role="status"></div>
+    </div>
+  </section>
+</main>
+
+<div data-chrome="foot"></div>
+</body>
+</html>

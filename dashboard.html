@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en-AU" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Dashboard · DKsKards</title>
+<script>try{var t=localStorage.getItem('dksKardsTheme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&text=DKsard%20&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .dash{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+  .side{border-right:1px solid var(--edge);padding:var(--s-5) var(--s-4);display:grid;align-content:start;gap:var(--s-5);position:sticky;top:0;height:100vh;overflow:auto}
+  .side nav{display:grid;gap:2px}
+  .side nav button{text-align:left;min-height:42px;padding:0 12px;border-radius:var(--r-ctl);border:0;background:none;color:var(--steel);cursor:pointer;font-weight:550}
+  .side nav button[aria-current]{background:var(--case);color:var(--acrylic)}
+  .main{padding:var(--s-6) var(--gutter) var(--s-8);max-width:1100px}
+  .main h1{font-size:var(--t-h2);margin-bottom:var(--s-2)}
+  .main>p{color:var(--steel);margin-bottom:var(--s-5);max-width:70ch}
+  .split{display:grid;grid-template-columns:280px 1fr;gap:var(--s-5);align-items:start}
+  .items{display:grid;gap:4px}
+  .items button{display:grid;text-align:left;gap:2px;padding:10px 12px;border-radius:var(--r-ctl);border:1px solid var(--edge);background:var(--case);cursor:pointer}
+  .items button[aria-current]{border-color:var(--lamp)}
+  .items small{color:var(--steel)}
+  .form{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-4);padding:var(--s-5)}
+  .form .full{grid-column:1/-1}
+  .form .check{color:var(--acrylic)}
+  .actions{display:flex;gap:var(--s-3);flex-wrap:wrap;grid-column:1/-1;padding-top:var(--s-2)}
+  .rows{display:grid;gap:var(--s-2)}
+  .row{display:grid;gap:var(--s-2);align-items:end}
+  .hint{font-size:var(--t-small);color:var(--steel)}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--acrylic);color:var(--room);padding:10px 18px;border-radius:999px;font-weight:600;z-index:90;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.on{opacity:1}
+  .swatch{display:flex;gap:var(--s-4);align-items:center;flex-wrap:wrap}
+  .swatch input[type=color]{width:64px;height:48px;border:1px solid var(--edge);border-radius:var(--r-ctl);background:none;cursor:pointer}
+  .preview-btn{display:inline-flex;min-height:48px;padding:0 22px;align-items:center;border-radius:var(--r-ctl);font-weight:600}
+  @media (max-width:860px){
+    .dash{grid-template-columns:1fr}
+    .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--edge)}
+    .side nav{grid-auto-flow:column;overflow-x:auto}
+    .split,.form{grid-template-columns:1fr}
+    body{padding-bottom:0}
+  }
+</style>
+</head>
+<body>
+<div class="dash">
+  <aside class="side">
+    <a class="logo" href="index.html"><span class="logo-chip">DK</span><span>DKsKards</span></a>
+    <nav id="tabs" aria-label="Dashboard sections"></nav>
+    <div style="display:grid;gap:8px">
+      <a class="btn btn-line btn-sm" href="index.html" target="_blank">Preview site ↗</a>
+      <button class="btn btn-lamp btn-sm" type="button" id="exportTop">Export config.json</button>
+    </div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+import { load, save, DEFAULTS, ADMIN_KEY, STORE_KEY, THEME_KEY, escapeHtml as esc, fmtAUD, latest, median, contrast } from './config.js';
+
+localStorage.setItem(ADMIN_KEY, '1');
+const cfg = structuredClone(await load({ admin: true }));
+const main = document.getElementById('main');
+const $ = (s, r = main) => r.querySelector(s);
+const uid = p => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+const today = () => new Date().toISOString().slice(0, 10);
+
+function persist(msg = 'Saved in this browser') {
+  cfg.updatedAt = new Date().toISOString();
+  save(cfg);
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('on');
+  clearTimeout(persist.t); persist.t = setTimeout(() => t.classList.remove('on'), 1800);
+}
+
+/* ---------- tiny form builder ---------- */
+const get = (o, path) => path.split('.').reduce((v, k) => v?.[k], o);
+const set = (o, path, val) => { const ks = path.split('.'), last = ks.pop(); ks.reduce((v, k) => (v[k] ??= {}), o)[last] = val; };
+const lines = {
+  fmt: (arr, cols) => (arr || []).map(r => (Array.isArray(r) ? r : cols.map(c => r[c])).join(' | ')).join('\n'),
+  parse: (text, cols, asArray, nums = []) => text.split('\n').map(l => l.split('|').map(s => s.trim())).filter(p => p[0])
+    .map(p => { const vals = cols.map((c, i) => nums.includes(c) ? Number(String(p[i] || '').replace(/[^\d.]/g, '')) : (p[i] || '')); return asArray ? vals : Object.fromEntries(cols.map((c, i) => [c, vals[i]])); })
+};
+
+function field(f, obj) {
+  const v = get(obj, f.k), id = 'f_' + f.k.replace(/\W/g, '_'), cls = f.full ? ' full' : '';
+  const hint = f.hint ? `<small class="hint">${f.hint}</small>` : '';
+  if (f.type === 'check') return `<label class="check${cls}"><input type="checkbox" id="${id}" data-k="${f.k}" ${v ? 'checked' : ''}> ${f.label}</label>`;
+  let input;
+  if (f.type === 'select') input = `<select class="input" id="${id}" data-k="${f.k}">${f.options.map(o => { const [val, lab] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(val)}" ${String(v ?? '') === String(val) ? 'selected' : ''}>${esc(lab)}</option>`; }).join('')}</select>`;
+  else if (f.type === 'textarea' || f.type === 'lines') input = `<textarea class="input" id="${id}" data-k="${f.k}" rows="${f.rows || 4}" ${f.type === 'lines' ? 'style="font-variant-numeric:tabular-nums"' : ''}>${esc(f.type === 'lines' ? lines.fmt(v, f.cols) : v ?? '')}</textarea>`;
+  else input = `<input class="input" id="${id}" data-k="${f.k}" type="${f.type || 'text'}" value="${esc(v ?? '')}" ${f.type === 'number' ? 'inputmode="decimal" step="any"' : ''}>`;
+  return `<label class="field${cls}" for="${id}"><span>${f.label}</span>${input}${hint}</label>`;
+}
+
+function readFields(form, fields, obj) {
+  for (const f of fields) {
+    const el = form.querySelector(`[data-k="${f.k}"]`);
+    if (!el) continue;
+    let v = f.type === 'check' ? el.checked : el.value;
+    if (f.type === 'number') v = v === '' ? null : Number(v);
+    if (f.type === 'lines') v = lines.parse(v, f.cols, f.asArray, f.nums);
+    set(obj, f.k, v);
+  }
+  return obj;
+}
+
+/* ---------- price check (median of recent comps → history, with confirm) ---------- */
+function checkPrice(item) {
+  if (!item) return false;
+  const since = Date.now() - 90 * 864e5;
+  const recent = (item.comps || []).filter(c => Date.parse(c.date) >= since && c.aud > 0);
+  if (!recent.length) { alert(`No sales in the last 90 days for ${item.name}. Paste some comps first.`); return false; }
+  const m = Math.round(median(recent.map(c => c.aud)) / 5) * 5, cur = latest(item);
+  if (!confirm(`${item.name} ${item.grader} ${item.grade}\n\nSuggested market median: ${fmtAUD(m)} (from ${recent.length} sales in 90 days).\nCurrent: ${fmtAUD(cur)}.\n\nAdd it to the price history?`)) return false;
+  item.history ??= [];
+  const t = today(), last = item.history.at(-1);
+  if (last?.t === t) last.aud = m; else item.history.push({ t, aud: m });
+  return true;
+}
+
+/* ---------- panels ---------- */
+const STATUS = [['available', 'Available'], ['on_hold', 'On hold'], ['sold', 'Sold']];
+const GRADERS = ['PSA', 'CGC', 'BGS', 'TAG', 'ACE'];
+
+const LISTING_FIELDS = () => [
+  { k: 'title', label: 'Title (card name)' }, { k: 'subtitle', label: 'Subtitle (set and number)' },
+  { k: 'grader', label: 'Grader', type: 'select', options: GRADERS }, { k: 'grade', label: 'Grade' },
+  { k: 'cert', label: 'Cert number' }, { k: 'priceAUD', label: 'Our price (A$, all-in)', type: 'number' },
+  { k: 'status', label: 'Status', type: 'select', options: STATUS },
+  { k: 'inventoryId', label: 'Tracked card (for sales and median)', type: 'select', options: [['', 'None'], ...(cfg.inventory || []).map(i => [i.id, `${i.name} ${i.grader} ${i.grade}`])] },
+  { k: 'listedAt', label: 'Listed on', type: 'date' }, { k: 'soldAt', label: 'Sold on', type: 'date', hint: 'Sold slabs show on the Market page for 30 days.' },
+  { k: 'images.front', label: 'Front photo path', hint: 'e.g. img/charizard-psa9-front.webp' }, { k: 'images.back', label: 'Back photo path' },
+  { k: 'images.edge', label: 'Edge photo path' }, { k: 'buyLink', label: 'Stripe Payment Link (optional)', type: 'url', hint: 'Empty = email enquiry.' },
+  { k: 'notes', label: 'Our notes (centring, surface, corners, eye appeal)', type: 'textarea', full: true, rows: 5 },
+  { k: 'provenance', label: 'Provenance, one per line: date | event', type: 'lines', cols: ['date', 'event'], full: true },
+  { k: 'ladder', label: 'Grade ladder, one per line: grade | price', type: 'lines', cols: ['grade', 'price'], asArray: true, nums: ['price'], full: true, hint: 'Write the grade exactly like “PSA 9” so this slab’s rung is highlighted.' },
+  { k: 'featured', label: 'Featured (the hero slab on Home)', type: 'check' }, { k: 'onlyCopy', label: 'Only copy we have', type: 'check' },
+  { k: 'certVerified', label: 'I’ve checked the cert on the grader’s site', type: 'check' }, { k: 'sample', label: 'Sample listing (shows a “Sample” tag)', type: 'check' }
+];
+
+const INV_FIELDS = [
+  { k: 'name', label: 'Card name' }, { k: 'set', label: 'Set' }, { k: 'number', label: 'Card number' },
+  { k: 'era', label: 'Era', type: 'select', options: ['WOTC vintage', 'EX & DP era', 'HGSS to XY', 'Sun & Moon', 'Sword & Shield', 'Scarlet & Violet', 'Japanese', 'Other'] },
+  { k: 'language', label: 'Language', type: 'select', options: ['English', 'Japanese', 'Korean', 'Chinese', 'Other'] },
+  { k: 'grader', label: 'Grader', type: 'select', options: GRADERS }, { k: 'grade', label: 'Grade' },
+  { k: 'pop', label: 'Population at this grade', type: 'number' }, { k: 'popHigher', label: 'Population graded higher', type: 'number' },
+  { k: 'comps', label: 'Recent sales, one per line: date | price A$ | venue', type: 'lines', cols: ['date', 'aud', 'venue'], nums: ['aud'], full: true, rows: 8, hint: 'Dates as YYYY-MM-DD. Convert USD to AUD before pasting.' }
+];
+
+function listEditor({ title, intro, key, fields, label, sub, blank, onSave, extra }) {
+  return function render(selId) {
+    const arr = cfg[key] ??= [];
+    const cur = arr.find(x => x.id === selId) || arr[0];
+    main.innerHTML = `<h1>${title}</h1><p>${intro}</p>
+      <div class="split">
+        <div class="items">
+          <button type="button" class="btn btn-lamp btn-sm" id="newItem" style="display:flex">New</button>
+          ${arr.map(x => `<button type="button" data-id="${esc(x.id)}" ${x === cur ? 'aria-current="true"' : ''}><b>${esc(label(x))}</b><small>${esc(sub(x))}</small></button>`).join('')}
+        </div>
+        ${cur ? `<form class="form panel" id="ed">${(typeof fields === 'function' ? fields() : fields).map(f => field(f, cur)).join('')}
+          ${extra ? extra(cur) : ''}
+          <div class="actions"><button class="btn btn-lamp" type="submit">Save</button>
+          <button class="btn btn-line" type="button" id="del">Delete</button>
+          ${key === 'listings' ? `<a class="btn btn-text" href="card.html?id=${encodeURIComponent(cur.id)}" target="_blank">View on site ↗</a>` : ''}</div></form>`
+        : '<p class="muted">Nothing here yet.</p>'}
+      </div>`;
+    $('#newItem').onclick = () => { const x = blank(); arr.unshift(x); persist('Added'); render(x.id); };
+    main.querySelectorAll('.items [data-id]').forEach(b => b.onclick = () => render(b.dataset.id));
+    if (!cur) return;
+    $('#ed').onsubmit = e => {
+      e.preventDefault();
+      readFields(e.target, typeof fields === 'function' ? fields() : fields, cur);
+      onSave?.(cur);
+      persist();
+      render(cur.id);
+    };
+    $('#del').onclick = () => { if (confirm(`Delete “${label(cur)}”? This can’t be undone (export a backup first if unsure).`)) { arr.splice(arr.indexOf(cur), 1); persist('Deleted'); render(); } };
+    main.querySelectorAll('[data-act]').forEach(b => b.onclick = () => extraAct(b.dataset.act, cur, render));
+  };
+}
+
+function extraAct(act, item, render) {
+  if (act === 'check') {
+    readFields($('#ed'), INV_FIELDS, item);
+    if (checkPrice(item)) { persist('Market median updated'); render(item.id); }
+  }
+}
+
+const PANELS = {
+  listings: { name: 'Listings', render: listEditor({
+    title: 'Listings', key: 'listings', fields: LISTING_FIELDS,
+    intro: 'What appears in Shop, On the table and the hero. Ticking Featured clears it on every other listing. Saving a listing with a tracked card offers to refresh its market median.',
+    label: x => `${x.title || 'Untitled'} ${x.grader || ''} ${x.grade || ''}`, sub: x => `${STATUS.find(s => s[0] === x.status)?.[1] || ''} · ${fmtAUD(x.priceAUD)}${x.featured ? ' · Featured' : ''}`,
+    blank: () => ({ id: uid('lst'), title: 'New slab', subtitle: '', grader: 'PSA', grade: '10', cert: '', priceAUD: null, status: 'available', onlyCopy: true, images: { front: '', back: '', edge: '' }, notes: '', provenance: [], ladder: [], featured: false, buyLink: '', listedAt: today() }),
+    onSave: l => {
+      if (l.featured) cfg.listings.forEach(x => { if (x !== l) x.featured = false; });
+      if (l.status === 'sold' && !l.soldAt) l.soldAt = today();
+      const item = cfg.inventory?.find(i => i.id === l.inventoryId);
+      if (item) checkPrice(item);
+    }
+  }) },
+  inventory: { name: 'Tracked cards', render: listEditor({
+    title: 'Tracked cards', key: 'inventory', fields: INV_FIELDS,
+    intro: 'Every card on the Market board. Paste 3–10 recent sales, then Check price to add a new market median to its history.',
+    label: x => x.name || 'Untitled', sub: x => `${x.grader} ${x.grade} · ${fmtAUD(latest(x))} · ${(x.comps || []).length} sales`,
+    blank: () => ({ id: uid('inv'), name: 'New card', set: '', number: '', era: 'Other', language: 'English', grader: 'PSA', grade: '10', pop: null, popHigher: null, history: [], comps: [] }),
+    extra: x => `<div class="full panel" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--case-2)">
+      <span>Market median <b class="num">${fmtAUD(latest(x))}</b> <span class="hint">· ${(x.history || []).length} history points · last ${esc(x.history?.at(-1)?.t || 'never')}</span></span>
+      <button class="btn btn-line btn-sm" type="button" data-act="check">Check price</button></div>`
+  }) },
+  ticker: { name: 'Live strip', render: renderTicker },
+  drops: { name: 'Drops', render: renderDrops },
+  membership: { name: 'Membership', render: renderMembership },
+  copy: { name: 'Copy & settings', render: renderCopy },
+  brand: { name: 'Brand', render: renderBrand },
+  publish: { name: 'Publish', render: renderPublish }
+};
+
+function renderTicker() {
+  const items = cfg.tickerItems ??= [];
+  main.innerHTML = `<h1>Live strip</h1><p>The prices that run across the top of every page. Previous price drives the % change.</p>
+    <form class="panel" style="padding:var(--s-5);display:grid;gap:var(--s-4)" id="tk">
+      <div class="rows">${items.map((t, i) => `<div class="row" style="grid-template-columns:2fr 1fr 1fr auto">
+        <label class="field"><span>Text</span><input class="input" name="text" value="${esc(t.text)}"></label>
+        <label class="field"><span>Price A$</span><input class="input num" name="price" type="number" value="${t.price ?? ''}"></label>
+        <label class="field"><span>Previous A$</span><input class="input num" name="prevPrice" type="number" value="${t.prevPrice ?? ''}"></label>
+        <button class="btn btn-text" type="button" data-rm="${i}" aria-label="Remove ${esc(t.text)}">Remove</button></div>`).join('')}</div>
+      <div class="actions"><button class="btn btn-lamp" type="submit">Save</button><button class="btn btn-line" type="button" id="add">Add a row</button>
+      <button class="btn btn-text" type="button" id="fill">Fill from tracked cards</button></div>
+    </form>`;
+  const read = () => {
+    cfg.tickerItems = [...main.querySelectorAll('.row')].map(r => {
+      const price = Number(r.querySelector('[name=price]').value) || null, prevPrice = Number(r.querySelector('[name=prevPrice]').value) || null;
+      return { text: r.querySelector('[name=text]').value, price, prevPrice, dir: price && prevPrice && price < prevPrice ? 'down' : 'up' };
+    }).filter(t => t.text.trim());
+  };
+  $('#tk').onsubmit = e => { e.preventDefault(); read(); persist(); renderTicker(); };
+  $('#add').onclick = () => { read(); cfg.tickerItems.push({ text: '', price: null, prevPrice: null }); renderTicker(); };
+  main.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { read(); cfg.tickerItems.splice(Number(b.dataset.rm), 1); persist('Removed'); renderTicker(); });
+  $('#fill').onclick = () => {
+    if (!confirm('Replace the live strip with the latest medians of your tracked cards?')) return;
+    cfg.tickerItems = (cfg.inventory || []).slice(0, 10).map(i => {
+      const h = i.history || [], price = latest(i), ref = h.length ? Date.parse(h.at(-1).t) - 30 * 864e5 : 0;
+      const prev = [...h].reverse().find(p => Date.parse(p.t) <= ref)?.aud ?? null;
+      return { text: `${i.name} ${i.grader} ${i.grade}`, price, prevPrice: prev, dir: prev && price < prev ? 'down' : 'up' };
+    });
+    persist('Live strip refreshed'); renderTicker();
+  };
+}
+
+function renderDrops() {
+  const drops = cfg.drops ??= [];
+  const local = d => { if (!d) return ''; const t = new Date(d); return new Date(t - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 16); };
+  main.innerHTML = `<h1>Drops</h1><p>Scheduled releases of new stock. The next one shows on Home and Shop with an “Add to calendar” link. Times are in this computer’s time zone.</p>
+    <form id="dr" style="display:grid;gap:var(--s-4)">
+      ${drops.map((d, i) => `<fieldset class="panel form" data-i="${i}" style="border:1px solid var(--edge)">
+        <label class="field"><span>Title</span><input class="input" name="title" value="${esc(d.title)}"></label>
+        <label class="field"><span>Date and time</span><input class="input" name="date" type="datetime-local" value="${local(d.date)}"></label>
+        <div class="full"><span class="hint">Listings in this drop</span>${(cfg.listings || []).map(l => `<label class="check"><input type="checkbox" name="lst" value="${esc(l.id)}" ${d.listingIds?.includes(l.id) ? 'checked' : ''}> ${esc(l.title)} ${esc(l.grader)} ${esc(l.grade)}</label>`).join('')}</div>
+        <div class="actions"><button class="btn btn-text" type="button" data-rm="${i}">Remove this drop</button></div></fieldset>`).join('')}
+      <div class="actions"><button class="btn btn-lamp" type="submit">Save</button><button class="btn btn-line" type="button" id="add">Add a drop</button></div>
+    </form>`;
+  const read = () => {
+    cfg.drops = [...main.querySelectorAll('fieldset[data-i]')].map(fs => ({
+      title: fs.querySelector('[name=title]').value,
+      date: fs.querySelector('[name=date]').value ? new Date(fs.querySelector('[name=date]').value).toISOString() : '',
+      listingIds: [...fs.querySelectorAll('[name=lst]:checked')].map(c => c.value)
+    }));
+  };
+  $('#dr').onsubmit = e => { e.preventDefault(); read(); persist(); renderDrops(); };
+  $('#add').onclick = () => { read(); cfg.drops.push({ title: 'New drop', date: new Date(Date.now() + 7 * 864e5).toISOString(), listingIds: [] }); renderDrops(); };
+  main.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { read(); cfg.drops.splice(Number(b.dataset.rm), 1); persist('Removed'); renderDrops(); });
+}
+
+function renderMembership() {
+  const tiers = cfg.membership.tiers;
+  const F = [{ k: 'name', label: 'Name' }, { k: 'priceMonthly', label: 'Monthly A$', type: 'number' }, { k: 'priceYearly', label: 'Yearly A$ (optional)', type: 'number' },
+    { k: 'link', label: 'Stripe Payment Link', type: 'url', hint: 'Empty = email signup.' }, { k: 'blurb', label: 'One-line description', full: true },
+    { k: 'highlight', label: 'Highlight this tier', type: 'check' }, { k: 'from', label: 'Show “from” before the price', type: 'check' }];
+  main.innerHTML = `<h1>Membership</h1><p>Prices and payment links for each tier. Create a recurring Stripe Payment Link per tier and paste it here.</p>
+    <form id="ms" style="display:grid;gap:var(--s-4)">${tiers.map((t, i) => `<fieldset class="panel form" data-i="${i}" style="border:1px solid var(--edge)"><legend class="hint" style="padding:0 6px">${esc(t.id)}</legend>${F.map(f => field({ ...f, k: f.k }, t).replace(/id="f_/g, `id="t${i}_`).replace(/for="f_/g, `for="t${i}_`)).join('')}</fieldset>`).join('')}
+    <div class="actions"><button class="btn btn-lamp" type="submit">Save</button></div></form>`;
+  $('#ms').onsubmit = e => {
+    e.preventDefault();
+    main.querySelectorAll('fieldset[data-i]').forEach(fs => readFields(fs, F, tiers[fs.dataset.i]));
+    if (tiers.filter(t => t.highlight).length > 1) alert('More than one tier is highlighted. Usually one reads best.');
+    persist();
+  };
+}
+
+function renderCopy() {
+  const C = Object.keys(DEFAULTS.copy).map(k => ({ k: 'copy.' + k, label: k.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase()), type: (DEFAULTS.copy[k].length > 70 ? 'textarea' : 'text'), full: DEFAULTS.copy[k].length > 70, rows: 3 }));
+  const S = [{ k: 'settings.contactEmail', label: 'Contact email (enquiries, briefs, orders)', type: 'email' }, { k: 'settings.huntPrice', label: 'Card Hunt price A$', type: 'number' },
+    { k: 'settings.auditPrice', label: 'Portfolio audit price A$', type: 'number' },
+    ...['free', 'collector', 'concierge'].map(t => ({ k: `settings.sourcingRates.${t}`, label: `Sourcing fee rate, ${t} (0.05 = 5%)`, type: 'number' }))];
+  main.innerHTML = `<h1>Copy & settings</h1><p>Every visible line of copy. Write in sentence case. Avoid “investment”, “returns” and “guaranteed”.</p>
+    <form class="form panel" id="cp">${S.map(f => field(f, cfg)).join('')}<hr class="full" style="border:0;border-top:1px solid var(--edge)">${C.map(f => field(f, cfg)).join('')}
+    <div class="actions"><button class="btn btn-lamp" type="submit">Save</button></div></form>`;
+  $('#cp').onsubmit = e => {
+    e.preventDefault();
+    readFields(e.target, [...S, ...C], cfg);
+    const banned = Object.values(cfg.copy).join(' ').match(/\b(investment|returns|guaranteed)\b/i);
+    persist(banned ? `Saved. Heads up: copy uses “${banned[0]}”.` : 'Saved in this browser');
+  };
+}
+
+function renderBrand() {
+  const ROOM = '#0F1319';
+  main.innerHTML = `<h1>Brand</h1><p>The logo’s chartreuse is fixed. The lamp colour is the light source: primary buttons, focus rings and “our price” in the dark theme.</p>
+    <div class="panel" style="padding:var(--s-5);display:grid;gap:var(--s-5)">
+      <div class="swatch">
+        <input type="color" id="lamp" value="${esc(cfg.settings.lamp || '#F2CF8D')}" aria-label="Lamp colour">
+        <span class="btn preview-btn" id="prev" style="background:${esc(cfg.settings.lamp)};color:#06080B">Browse the slabs</span>
+        <span class="preview-btn" id="prevText" style="background:${ROOM};color:${esc(cfg.settings.lamp)};font-size:1.3rem">A$4,950</span>
+      </div>
+      <p id="ratio" role="status"></p>
+      <label class="field" style="max-width:260px"><span>Default theme for new visitors</span>
+        <select class="input" id="theme"><option value="dark" ${cfg.theme !== 'light' ? 'selected' : ''}>Dark (viewing room)</option><option value="light" ${cfg.theme === 'light' ? 'selected' : ''}>Light (daylight inspection)</option></select></label>
+      <div class="actions"><button class="btn btn-lamp" type="button" id="saveBrand">Save</button><button class="btn btn-text" type="button" id="resetLamp">Reset to #F2CF8D</button></div>
+    </div>`;
+  const upd = () => {
+    const c = $('#lamp').value, r = contrast(c, ROOM);
+    $('#prev').style.background = c; $('#prevText').style.color = c;
+    $('#ratio').innerHTML = r >= 4.5 ? `<span class="up">Contrast ${r.toFixed(1)}:1 against the dark background. Good.</span>`
+      : `<span class="down">Contrast ${r.toFixed(1)}:1. This colour is hard to read on the dark background. Pick a lighter one.</span>`;
+    return r;
+  };
+  $('#lamp').oninput = upd; upd();
+  $('#resetLamp').onclick = () => { $('#lamp').value = '#F2CF8D'; upd(); };
+  $('#saveBrand').onclick = () => {
+    if (upd() < 4.5 && !confirm('This lamp colour fails the 4.5:1 contrast check. Save anyway?')) return;
+    cfg.settings.lamp = $('#lamp').value.toUpperCase();
+    cfg.theme = $('#theme').value;
+    persist();
+  };
+}
+
+function renderPublish() {
+  main.innerHTML = `<h1>Publish</h1>
+    <p>Edits here live only in this browser. To show them to visitors: export <b>config.json</b>, put it next to index.html in the site folder, and redeploy. Visitors load config.json; this browser also overlays its local edits because you’ve opened the dashboard here.</p>
+    <div class="panel" style="padding:var(--s-5);display:grid;gap:var(--s-4)">
+      <div class="actions"><button class="btn btn-lamp" type="button" id="exp">Export config.json</button>
+      <label class="btn btn-line" style="cursor:pointer">Import a config file<input type="file" id="imp" accept="application/json,.json" hidden></label></div>
+      <p class="hint">Last saved here: ${cfg.updatedAt ? new Date(cfg.updatedAt).toLocaleString('en-AU') : 'not yet'}.</p>
+      <hr style="border:0;border-top:1px solid var(--edge)">
+      <div class="actions">
+        <button class="btn btn-text" type="button" id="discard">Discard this browser’s edits</button>
+        <button class="btn btn-text" type="button" id="signout">Stop showing local edits in this browser</button>
+      </div>
+      <p class="hint">Discard reloads the published config.json (or the built-in samples). Stop showing makes this browser see the site exactly as visitors do.</p>
+    </div>`;
+  $('#exp').onclick = exportConfig;
+  $('#imp').onchange = async e => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!confirm(`Replace this browser’s config with ${file.name}?`)) return;
+      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+      location.reload();
+    } catch { alert('That file isn’t valid JSON.'); }
+  };
+  $('#discard').onclick = () => { if (confirm('Discard every unsaved-to-file edit in this browser?')) { localStorage.removeItem(STORE_KEY); location.reload(); } };
+  $('#signout').onclick = () => { localStorage.removeItem(ADMIN_KEY); alert('Done. Opening the dashboard again turns local edits back on.'); location.href = 'index.html'; };
+}
+
+function exportConfig() {
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' })), download: 'config.json'
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+}
+document.getElementById('exportTop').onclick = exportConfig;
+
+/* ---------- tabs ---------- */
+const tabs = document.getElementById('tabs');
+tabs.innerHTML = Object.entries(PANELS).map(([k, p]) => `<button type="button" data-p="${k}">${p.name}</button>`).join('');
+function show(k) {
+  if (!PANELS[k]) k = 'listings';
+  tabs.querySelectorAll('button').forEach(b => b.toggleAttribute('aria-current', b.dataset.p === k));
+  history.replaceState(null, '', '#' + k);
+  PANELS[k].render();
+  main.focus?.();
+}
+tabs.onclick = e => { const b = e.target.closest('[data-p]'); if (b) show(b.dataset.p); };
+show(location.hash.slice(1));
+</script>
+</body>
+</html>

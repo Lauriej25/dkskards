@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en-AU" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Market board · DKsKards</title>
+<meta name="description" content="Hot and cold Pokémon slabs in the Australian market: medians, 7, 30 and 90-day change, sales and heat.">
+<script>try{var t=localStorage.getItem('dksKardsTheme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&text=DKsard%20&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="market.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div data-chrome="top"></div>
+
+<main id="main" class="wrap" style="padding-top:var(--s-6)">
+  <div class="section-head">
+    <div>
+      <h1>Market</h1>
+      <p id="updated" class="num">Pokémon slabs we track</p>
+    </div>
+  </div>
+
+  <div class="board-tools">
+    <div class="chips" role="group" aria-label="Time range" id="range">
+      <button class="chip" type="button" aria-pressed="false" data-days="7">7d</button>
+      <button class="chip" type="button" aria-pressed="true" data-days="30">30d</button>
+      <button class="chip" type="button" aria-pressed="false" data-days="90">90d</button>
+    </div>
+    <div class="chips" role="group" aria-label="View" id="view">
+      <button class="chip" type="button" aria-pressed="true" data-view="hot">Hot</button>
+      <button class="chip" type="button" aria-pressed="false" data-view="cold">Cold</button>
+      <button class="chip" type="button" aria-pressed="false" data-view="traded">Most traded</button>
+    </div>
+  </div>
+
+  <div class="gate" id="gate">
+    <table class="board num" id="board" aria-describedby="boardNote">
+      <thead><tr>
+        <th scope="col">Card</th><th scope="col">Grade</th><th scope="col">Median</th>
+        <th scope="col">7d</th><th scope="col">30d</th><th scope="col">90d</th>
+        <th scope="col" id="salesHead">Sales</th><th scope="col">Heat</th><th scope="col"><span class="sr-only">Trend</span></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="chart-note" id="boardNote">Heat weighs 30-day momentum most, then 7-day momentum, then how fast the card is selling against its 90-day pace. <span data-copy="disclaimer">General information only. Nothing on this site is financial advice.</span></p>
+
+  <section class="section" aria-labelledby="hmTitle" style="padding-bottom:0">
+    <div class="section-head">
+      <div><h2 id="hmTitle">Heat map</h2><p>Average 30-day change by era and grade.</p></div>
+    </div>
+    <div class="heatmap num" id="heatmap" role="table" aria-label="Average 30-day change by era and grade"></div>
+  </section>
+
+  <section class="section" aria-labelledby="soldTitle" id="soldWrap" hidden>
+    <div class="section-head"><div><h2 id="soldTitle">Recently sold</h2><p>Slabs that left our table in the last 30 days.</p></div></div>
+    <ul class="mover-list" id="sold"></ul>
+  </section>
+</main>
+
+<div data-chrome="foot"></div>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en-AU" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shop slabs · DKsKards</title>
+<meta name="description" content="Every graded Pokémon slab we have, with all-in AUD prices, recent sales and population.">
+<script>try{var t=localStorage.getItem('dksKardsTheme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&text=DKsard%20&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="shop.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div data-chrome="top"></div>
+
+<main id="main" class="wrap" style="padding-top:var(--s-6)">
+  <div class="section-head">
+    <div>
+      <h1>The slabs</h1>
+      <p>All-in AUD prices with insured shipping in Australia. Each one comes with its sales and our notes.</p>
+    </div>
+  </div>
+  <div class="panel drop-note" id="dropNote" hidden></div>
+
+  <div class="shop">
+    <aside class="filters" id="filters" aria-label="Filters">
+      <div class="sheet-head" style="padding:0 0 12px;position:static" data-mobile-only hidden>
+        <h2 style="font-size:1.25rem">Filters</h2>
+        <button class="icon-btn" type="button" id="filtersClose" aria-label="Close filters"></button>
+      </div>
+      <fieldset><legend>Grader</legend><div id="fGrader"></div></fieldset>
+      <fieldset><legend>Grade</legend><div id="fGrade"></div></fieldset>
+      <fieldset><legend>Era</legend><div id="fEra"></div></fieldset>
+      <fieldset><legend>Language</legend><div id="fLang"></div></fieldset>
+      <fieldset>
+        <legend>Price (A$)</legend>
+        <div class="price-range">
+          <label class="field"><span>Min</span><input class="input num" id="fMin" inputmode="numeric" placeholder="0"></label>
+          <label class="field"><span>Max</span><input class="input num" id="fMax" inputmode="numeric" placeholder="Any"></label>
+        </div>
+      </fieldset>
+      <fieldset><legend>Movement</legend><label class="check"><input type="checkbox" id="fRising"> Rising in 30 days</label></fieldset>
+      <button class="btn btn-text" type="button" id="clearFilters" style="justify-self:start">Clear filters</button>
+      <div class="filters-sheet-foot"><button class="btn btn-lamp" type="button" id="showResults">Show slabs</button></div>
+    </aside>
+
+    <section aria-label="Results">
+      <div class="shop-bar">
+        <div style="display:flex;gap:12px;align-items:center">
+          <button class="btn btn-line btn-sm filters-open" type="button" id="filtersOpen" aria-controls="filters" aria-expanded="false">Filters</button>
+          <p class="num" id="count" aria-live="polite"></p>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center"><span class="muted small">Sort</span>
+          <select class="input" id="sort" style="min-height:40px">
+            <option value="new">Newest</option>
+            <option value="priceAsc">Price, low to high</option>
+            <option value="priceDesc">Price, high to low</option>
+            <option value="change">30-day change</option>
+            <option value="pop">Population, rarest first</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+  </div>
+</main>
+
+<div data-chrome="foot"></div>
+</body>
+</html>
