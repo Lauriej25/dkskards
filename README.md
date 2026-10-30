@@ -28,6 +28,10 @@ Then open http://localhost:8080 (site) and http://localhost:8080/dashboard.html 
 
 ## Publishing changes
 
-Dashboard → Export config.json → replace `config.json` here → redeploy (Netlify / Vercel / Cloudflare Pages drag-and-drop).
+Live at https://lauriej25.github.io/dkskards/ (GitHub Pages, `main` branch).
+
+The dashboard publishes directly: open https://lauriej25.github.io/dkskards/dashboard.html → Publish tab → paste a fine-grained GitHub token (this repo only, Contents: read and write; Pages: read-only optional) → Save and test. After that, **Publish live** commits `config.json` and the site updates in about a minute. Listing photos uploaded in the dashboard are resized and committed to `img/`.
+
+The token is stored only in that browser's localStorage. Export config.json on the Publish tab for backups.
 
 The sample listings are marked "Sample". Replace them (and the placeholder contact email in Copy & settings) before launch.

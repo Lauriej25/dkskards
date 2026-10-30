@@ -36,6 +36,10 @@
   .toast.on{opacity:1}
   .swatch{display:flex;gap:var(--s-4);align-items:center;flex-wrap:wrap}
   .swatch input[type=color]{width:64px;height:48px;border:1px solid var(--edge);border-radius:var(--r-ctl);background:none;cursor:pointer}
+  .photo-row{display:flex;gap:8px;align-items:center}
+  .photo-row .input{flex:1;min-width:0}
+  .photo-row .thumb{width:40px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--edge)}
+  .photo-row .thumb[hidden]{display:none}
   .preview-btn{display:inline-flex;min-height:48px;padding:0 22px;align-items:center;border-radius:var(--r-ctl);font-weight:600}
   @media (max-width:860px){
     .dash{grid-template-columns:1fr}
@@ -53,7 +57,8 @@
     <nav id="tabs" aria-label="Dashboard sections"></nav>
     <div style="display:grid;gap:8px">
       <a class="btn btn-line btn-sm" href="index.html" target="_blank">Preview site ↗</a>
-      <button class="btn btn-lamp btn-sm" type="button" id="exportTop">Export config.json</button>
+      <button class="btn btn-lamp btn-sm" type="button" id="publishTop">Publish live</button>
+      <p class="hint" id="pubState" role="status" aria-live="polite"></p>
     </div>
   </aside>
   <main class="main" id="main"></main>
@@ -61,7 +66,8 @@
 <div class="toast" id="toast" role="status"></div>
 
 <script type="module">
-import { load, save, DEFAULTS, ADMIN_KEY, STORE_KEY, THEME_KEY, escapeHtml as esc, fmtAUD, latest, median, contrast } from './config.js';
+import { load, save, DEFAULTS, ADMIN_KEY, STORE_KEY, escapeHtml as esc, fmtAUD, latest, median, contrast } from './config.js';
+import { getConn, setConn, forgetToken, testConn, putFile, b64text, preparePhoto, pagesStatus } from './github.js';
 
 localStorage.setItem(ADMIN_KEY, '1');
 const cfg = structuredClone(await load({ admin: true }));
@@ -70,12 +76,74 @@ const $ = (s, r = main) => r.querySelector(s);
 const uid = p => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const today = () => new Date().toISOString().slice(0, 10);
 
-function persist(msg = 'Saved in this browser') {
-  cfg.updatedAt = new Date().toISOString();
-  save(cfg);
+const PUBLISHED_KEY = 'dksKardsPublishedAt';
+
+function toast(msg, ms = 1800) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('on');
-  clearTimeout(persist.t); persist.t = setTimeout(() => t.classList.remove('on'), 1800);
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), ms);
+}
+
+function persist(msg = 'Saved. Publish to make it live.') {
+  cfg.updatedAt = new Date().toISOString();
+  save(cfg);
+  toast(msg);
+  showPubState();
+}
+
+function showPubState(text) {
+  const el = document.getElementById('pubState');
+  if (text) { el.textContent = text; return; }
+  const published = localStorage.getItem(PUBLISHED_KEY);
+  el.textContent = !published ? 'Not published from this browser yet'
+    : cfg.updatedAt && cfg.updatedAt > published ? '● Unpublished changes'
+    : `Live · published ${new Date(published).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}`;
+}
+
+/* ---------- publish to GitHub ---------- */
+async function publishLive() {
+  if (!getConn().token) { show('publish'); toast('Connect GitHub first: paste your token below.', 3000); return; }
+  const btn = document.getElementById('publishTop');
+  btn.disabled = true; btn.textContent = 'Publishing…';
+  try {
+    const stamp = cfg.updatedAt || new Date().toISOString();
+    await putFile('config.json', b64text(JSON.stringify(cfg, null, 1)), 'Update site content from the dashboard');
+    localStorage.setItem(PUBLISHED_KEY, stamp);
+    toast('Published. The live site updates in about a minute.', 3500);
+    watchBuild();
+  } catch (e) {
+    alert(`Couldn’t publish.\n\n${e.message}`);
+    showPubState();
+  } finally {
+    btn.disabled = false; btn.textContent = 'Publish live';
+  }
+}
+
+// Follows the GitHub Pages build so you know when visitors see the change.
+async function watchBuild() {
+  showPubState('Going live…');
+  let sawBuild = false;
+  for (let i = 0; i < 36; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    const s = await pagesStatus();
+    if (s === null) { showPubState('Published. Live within a couple of minutes.'); return; }
+    if (s !== 'built') sawBuild = true;
+    // Right after a push the "latest build" can still be the previous one, so wait to see the new build or ~30s.
+    if (s === 'built' && (sawBuild || i >= 5)) { showPubState(); toast('Your changes are live.'); return; }
+    if (s === 'errored') { showPubState('GitHub Pages build failed. Check the repo’s Actions tab.'); return; }
+  }
+  showPubState();
+}
+
+async function uploadPhoto(file, l, side) {
+  if (!getConn().token) { toast('Connect GitHub on the Publish tab before uploading photos.', 3000); return null; }
+  const slug = `${l.title}-${l.grader}${l.grade}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  toast('Resizing and uploading…', 10000);
+  const photo = await preparePhoto(file);
+  const path = `img/${slug || l.id}-${side}.${photo.ext}`;
+  await putFile(path, photo.base64, `Add ${side} photo for ${l.title}`);
+  toast(`Uploaded ${path} (${photo.kb} KB). Save the listing, then Publish.`, 4000);
+  return path;
 }
 
 /* ---------- tiny form builder ---------- */
@@ -91,6 +159,10 @@ function field(f, obj) {
   const v = get(obj, f.k), id = 'f_' + f.k.replace(/\W/g, '_'), cls = f.full ? ' full' : '';
   const hint = f.hint ? `<small class="hint">${f.hint}</small>` : '';
   if (f.type === 'check') return `<label class="check${cls}"><input type="checkbox" id="${id}" data-k="${f.k}" ${v ? 'checked' : ''}> ${f.label}</label>`;
+  if (f.type === 'photo') return `<div class="field${cls}"><label for="${id}"><span class="hint">${f.label}</span></label>
+    <div class="photo-row"><img class="thumb" src="${esc(v || '')}" alt="" ${v ? '' : 'hidden'}>
+      <input class="input" id="${id}" data-k="${f.k}" value="${esc(v ?? '')}" placeholder="Upload, or type img/…">
+      <label class="btn btn-line btn-sm" style="cursor:pointer">Upload<input type="file" accept="image/*" hidden data-upload="${f.k.split('.').pop()}" data-target="${id}"></label></div></div>`;
   let input;
   if (f.type === 'select') input = `<select class="input" id="${id}" data-k="${f.k}">${f.options.map(o => { const [val, lab] = Array.isArray(o) ? o : [o, o]; return `<option value="${esc(val)}" ${String(v ?? '') === String(val) ? 'selected' : ''}>${esc(lab)}</option>`; }).join('')}</select>`;
   else if (f.type === 'textarea' || f.type === 'lines') input = `<textarea class="input" id="${id}" data-k="${f.k}" rows="${f.rows || 4}" ${f.type === 'lines' ? 'style="font-variant-numeric:tabular-nums"' : ''}>${esc(f.type === 'lines' ? lines.fmt(v, f.cols) : v ?? '')}</textarea>`;
@@ -135,8 +207,8 @@ const LISTING_FIELDS = () => [
   { k: 'status', label: 'Status', type: 'select', options: STATUS },
   { k: 'inventoryId', label: 'Tracked card (for sales and median)', type: 'select', options: [['', 'None'], ...(cfg.inventory || []).map(i => [i.id, `${i.name} ${i.grader} ${i.grade}`])] },
   { k: 'listedAt', label: 'Listed on', type: 'date' }, { k: 'soldAt', label: 'Sold on', type: 'date', hint: 'Sold slabs show on the Market page for 30 days.' },
-  { k: 'images.front', label: 'Front photo path', hint: 'e.g. img/charizard-psa9-front.webp' }, { k: 'images.back', label: 'Back photo path' },
-  { k: 'images.edge', label: 'Edge photo path' }, { k: 'buyLink', label: 'Stripe Payment Link (optional)', type: 'url', hint: 'Empty = email enquiry.' },
+  { k: 'images.front', label: 'Front photo', type: 'photo' }, { k: 'images.back', label: 'Back photo', type: 'photo' },
+  { k: 'images.edge', label: 'Edge photo', type: 'photo' }, { k: 'buyLink', label: 'Stripe Payment Link (optional)', type: 'url', hint: 'Empty = email enquiry.' },
   { k: 'notes', label: 'Our notes (centring, surface, corners, eye appeal)', type: 'textarea', full: true, rows: 5 },
   { k: 'provenance', label: 'Provenance, one per line: date | event', type: 'lines', cols: ['date', 'event'], full: true },
   { k: 'ladder', label: 'Grade ladder, one per line: grade | price', type: 'lines', cols: ['grade', 'price'], asArray: true, nums: ['price'], full: true, hint: 'Write the grade exactly like “PSA 9” so this slab’s rung is highlighted.' },
@@ -180,8 +252,21 @@ function listEditor({ title, intro, key, fields, label, sub, blank, onSave, extr
       persist();
       render(cur.id);
     };
-    $('#del').onclick = () => { if (confirm(`Delete “${label(cur)}”? This can’t be undone (export a backup first if unsure).`)) { arr.splice(arr.indexOf(cur), 1); persist('Deleted'); render(); } };
+    $('#del').onclick = () => { if (confirm(`Delete “${label(cur)}”? It stays on the live site until you publish.`)) { arr.splice(arr.indexOf(cur), 1); persist('Deleted'); render(); } };
     main.querySelectorAll('[data-act]').forEach(b => b.onclick = () => extraAct(b.dataset.act, cur, render));
+    main.querySelectorAll('[data-upload]').forEach(inp => inp.onchange = async () => {
+      const file = inp.files[0];
+      if (!file) return;
+      try {
+        readFields($('#ed'), typeof fields === 'function' ? fields() : fields, cur);
+        const path = await uploadPhoto(file, cur, inp.dataset.upload);
+        if (!path) return;
+        const target = document.getElementById(inp.dataset.target), thumb = target.parentElement.querySelector('.thumb');
+        target.value = path;
+        thumb.src = URL.createObjectURL(file); thumb.hidden = false;
+      } catch (e) { alert(`Couldn’t upload the photo.\n\n${e.message}`); }
+      inp.value = '';
+    });
   };
 }
 
@@ -342,10 +427,33 @@ function renderBrand() {
 }
 
 function renderPublish() {
+  const c = getConn();
   main.innerHTML = `<h1>Publish</h1>
-    <p>Edits here live only in this browser. To show them to visitors: export <b>config.json</b>, put it next to index.html in the site folder, and redeploy. Visitors load config.json; this browser also overlays its local edits because you’ve opened the dashboard here.</p>
-    <div class="panel" style="padding:var(--s-5);display:grid;gap:var(--s-4)">
-      <div class="actions"><button class="btn btn-lamp" type="button" id="exp">Export config.json</button>
+    <p>Saving keeps edits in this browser. <b>Publish live</b> sends them to your GitHub repo, and the public site updates about a minute later. Photos you upload go live straight away; save and publish the listing so it uses them.</p>
+    <form class="panel form" id="gh" autocomplete="off">
+      <h2 class="full" style="font-size:1.15rem">GitHub connection</h2>
+      <label class="field"><span>Owner</span><input class="input" name="owner" value="${esc(c.owner)}"></label>
+      <label class="field"><span>Repo</span><input class="input" name="repo" value="${esc(c.repo)}"></label>
+      <label class="field"><span>Branch</span><input class="input" name="branch" value="${esc(c.branch)}"></label>
+      <label class="field"><span>Access token</span><input class="input" name="token" type="password" value="${esc(c.token)}" placeholder="github_pat_…" spellcheck="false"></label>
+      <details class="full hint"><summary style="cursor:pointer">How to make a token (2 minutes, once)</summary>
+        <ol style="margin:8px 0 0 18px;display:grid;gap:4px">
+          <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com → Settings → Fine-grained tokens → Generate new token</a>.</li>
+          <li>Name it “DKsKards dashboard”. Pick an expiry (a year is fine).</li>
+          <li>Repository access: <b>Only select repositories</b> → <b>${esc(c.owner)}/${esc(c.repo)}</b>.</li>
+          <li>Permissions → Repository: <b>Contents: Read and write</b>. Optional: <b>Pages: Read-only</b> so the dashboard can tell you when it’s live.</li>
+          <li>Generate, copy, paste it above, then Save and test.</li>
+        </ol>
+        <p style="margin-top:8px">The token is stored only in this browser and only sent to GitHub. It can’t touch anything except this repo. Anyone using this browser can publish, so don’t save it on a shared computer.</p>
+      </details>
+      <p class="full" id="ghMsg" role="status"></p>
+      <div class="actions"><button class="btn btn-line" type="submit">Save and test</button>
+        <button class="btn btn-lamp" type="button" id="pubNow">Publish live</button>
+        ${c.token ? '<button class="btn btn-text" type="button" id="forget">Forget token on this browser</button>' : ''}</div>
+    </form>
+    <div class="panel" style="padding:var(--s-5);display:grid;gap:var(--s-4);margin-top:var(--s-5)">
+      <h2 style="font-size:1.15rem">Backups</h2>
+      <div class="actions"><button class="btn btn-line" type="button" id="exp">Export config.json</button>
       <label class="btn btn-line" style="cursor:pointer">Import a config file<input type="file" id="imp" accept="application/json,.json" hidden></label></div>
       <p class="hint">Last saved here: ${cfg.updatedAt ? new Date(cfg.updatedAt).toLocaleString('en-AU') : 'not yet'}.</p>
       <hr style="border:0;border-top:1px solid var(--edge)">
@@ -355,6 +463,19 @@ function renderPublish() {
       </div>
       <p class="hint">Discard reloads the published config.json (or the built-in samples). Stop showing makes this browser see the site exactly as visitors do.</p>
     </div>`;
+  $('#gh').onsubmit = async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    setConn({ owner: f.owner.trim(), repo: f.repo.trim(), branch: f.branch.trim() || 'main', token: f.token.trim() });
+    const msg = $('#ghMsg');
+    msg.className = 'full'; msg.textContent = 'Testing…';
+    try {
+      const name = await testConn();
+      msg.className = 'full up'; msg.textContent = `Connected to ${name}. You can publish now.`;
+    } catch (err) { msg.className = 'full down'; msg.textContent = err.message; }
+  };
+  $('#pubNow').onclick = publishLive;
+  $('#forget')?.addEventListener('click', () => { forgetToken(); toast('Token removed from this browser'); renderPublish(); });
   $('#exp').onclick = exportConfig;
   $('#imp').onchange = async e => {
     const file = e.target.files[0]; if (!file) return;
@@ -365,7 +486,7 @@ function renderPublish() {
       location.reload();
     } catch { alert('That file isn’t valid JSON.'); }
   };
-  $('#discard').onclick = () => { if (confirm('Discard every unsaved-to-file edit in this browser?')) { localStorage.removeItem(STORE_KEY); location.reload(); } };
+  $('#discard').onclick = () => { if (confirm('Discard every edit in this browser that hasn’t been published?')) { localStorage.removeItem(STORE_KEY); location.reload(); } };
   $('#signout').onclick = () => { localStorage.removeItem(ADMIN_KEY); alert('Done. Opening the dashboard again turns local edits back on.'); location.href = 'index.html'; };
 }
 
@@ -375,7 +496,8 @@ function exportConfig() {
   });
   a.click(); URL.revokeObjectURL(a.href);
 }
-document.getElementById('exportTop').onclick = exportConfig;
+document.getElementById('publishTop').onclick = publishLive;
+showPubState();
 
 /* ---------- tabs ---------- */
 const tabs = document.getElementById('tabs');
