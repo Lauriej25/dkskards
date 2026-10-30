@@ -37,11 +37,14 @@ async function api(path, opts = {}) {
       ...(opts.body ? { 'Content-Type': 'application/json' } : {})
     }
   });
+  // e.g. "2027-01-27 10:00:00 +1100"; only readable if GitHub's CORS settings expose it.
+  const exp = res.headers.get('github-authentication-token-expiration');
+  if (exp) lastExpiry = exp.slice(0, 10);
   if (!res.ok) {
     let msg = res.statusText;
     try { msg = (await res.json()).message || msg; } catch {}
     const err = new Error(
-      res.status === 401 ? 'GitHub rejected the token. It may have expired or been pasted incompletely.' :
+      res.status === 401 ? 'GitHub rejected the token. It has probably expired (or was pasted incompletely). Follow “Renew your token” on the Publish tab.' :
       res.status === 403 || res.status === 404 && opts.method === 'PUT' ? `The token can’t write to this repo (${msg}). Give it “Contents: Read and write” on this repository.` :
       res.status === 404 ? 'Repo not found. Check the owner and repo name, and that the token has access to it.' :
       `GitHub error ${res.status}: ${msg}`);
@@ -53,11 +56,13 @@ async function api(path, opts = {}) {
 
 const repoPath = () => { const c = getConn(); return `/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}`; };
 
-// Checks the token can see the repo. Returns the repo's full name.
+// Checks the token can see the repo. Returns the repo's full name, and the token's expiry date
+// (YYYY-MM-DD) when GitHub reports it to the browser, otherwise null.
 export async function testConn() {
   const r = await api(repoPath());
-  return r.full_name;
+  return { name: r.full_name, expires: lastExpiry };
 }
+let lastExpiry = null;
 
 async function shaOf(path) {
   try {
