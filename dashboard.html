@@ -574,7 +574,14 @@ function renderPublish() {
   main.querySelectorAll('[data-plus]').forEach(b => b.onclick = () => { $('[name=expires]').value = plusDays(Number(b.dataset.plus)); updateExpiry(); });
   $('#icsBtn').onclick = () => { const v = $('[name=expires]').value; if (v) downloadReminder(v); };
   if (openRenew) { $('#renewSteps').scrollIntoView({ block: 'center' }); openRenew = false; }
-  $('#pubNow').onclick = publishLive;
+  // Publishing from this tab uses whatever is typed in the form, even if Save and test wasn't clicked.
+  $('#pubNow').onclick = () => {
+    const f = Object.fromEntries(new FormData($('#gh')));
+    setConn({ owner: f.owner.trim(), repo: f.repo.trim(), branch: f.branch.trim() || 'main', token: f.token.trim(), expires: f.expires || '' });
+    updateExpiry();
+    renderTokenAlert();
+    publishLive();
+  };
   $('#forget')?.addEventListener('click', () => { forgetToken(); toast('Token removed from this browser'); renderTokenAlert(); renderPublish(); });
   $('#exp').onclick = exportConfig;
   $('#imp').onchange = async e => {
