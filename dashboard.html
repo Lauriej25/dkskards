@@ -41,6 +41,10 @@
   .alert.bad{border-color:var(--loss);background:color-mix(in srgb,var(--loss) 12%,transparent)}
   .alert .btn{min-height:36px;justify-self:start;padding:0 12px}
   .steps-list{margin:8px 0 0 18px;display:grid;gap:6px}
+  .drop{display:grid;grid-template-columns:1fr auto;gap:8px var(--s-4);align-items:center;padding:var(--s-4) var(--s-5);margin-bottom:var(--s-5);border-style:dashed}
+  .drop.over{border-color:var(--lamp);background:color-mix(in srgb,var(--lamp) 8%,var(--case))}
+  .drop .full{grid-column:1/-1}
+  .drop .hint:empty{display:none}
   .photo-row{display:flex;gap:8px;align-items:center}
   .photo-row .input{flex:1;min-width:0}
   .photo-row .thumb{width:40px;height:56px;object-fit:cover;border-radius:4px;border:1px solid var(--edge)}
@@ -74,6 +78,7 @@
 <script type="module">
 import { load, save, DEFAULTS, ADMIN_KEY, STORE_KEY, escapeHtml as esc, fmtAUD, latest, median, contrast } from './config.js';
 import { getConn, setConn, forgetToken, testConn, putFile, b64text, preparePhoto, pagesStatus } from './github.js';
+import { getKey, setKey, forgetKey, testKey, readSlab } from './reader.js';
 
 localStorage.setItem(ADMIN_KEY, '1');
 const cfg = structuredClone(await load({ admin: true }));
@@ -189,12 +194,65 @@ async function watchBuild() {
   showPubState();
 }
 
+// e.g. "leafeon-vmax-psa8"; photo file names are built from it.
+const slugFor = l => `${l.title}-${l.grader}${l.grade}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || l.id;
+
+/* ---------- new listing from a photo ---------- */
+let fillNote = null;   // { id, unclear } for the listing just filled from a photo, shown until it's saved
+
+async function fillFromPhoto(file, render) {
+  const say = (text, cls = 'hint full') => { const m = document.getElementById('photoFillMsg'); m.className = cls; m.textContent = text; };
+  if (!getKey()) { say('Add your Claude API key on the Publish tab first (Photo reading section).', 'down full'); return; }
+  try {
+    say('Reading the label… (about 10 seconds)');
+    const photo = await preparePhoto(file);
+    const r = await readSlab(photo);
+    if (!r.isGradedSlab) { say('That doesn’t look like a graded slab with a readable label. Try a closer, straight-on photo.', 'down full'); return; }
+
+    const grader = r.grader === 'Other' ? '' : r.grader;
+    const l = {
+      id: uid('lst'), title: r.cardName || 'New slab',
+      subtitle: [r.setName, r.variant].filter(Boolean).join(' ') + (r.cardNumber ? ` #${r.cardNumber}` : ''),
+      grader, grade: r.grade, cert: r.cert, priceAUD: null, status: 'available', onlyCopy: true,
+      images: { front: '', back: '', edge: '' }, notes: '', provenance: [], ladder: [], featured: false, buyLink: '', listedAt: today()
+    };
+
+    // Link to the matching tracked card, or start one so sales and the median can be added later.
+    const same = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+    let item = (cfg.inventory ??= []).find(i => same(i.name, r.cardName) && same(i.set, r.setName) && same(i.grader, grader) && same(i.grade, r.grade));
+    if (!item) {
+      item = { id: uid('inv'), name: r.cardName, set: r.setName, number: r.cardNumber, era: r.era, language: r.language, grader, grade: r.grade, pop: null, popHigher: null, history: [], comps: [] };
+      cfg.inventory.push(item);
+    }
+    l.inventoryId = item.id;
+
+    let photoNote = ' Connect GitHub on the Publish tab and the photo will be added automatically next time.';
+    if (getConn().token) {
+      say('Label read. Uploading the photo…');
+      try {
+        const path = `img/${slugFor(l)}-front.${photo.ext}`;
+        await putFile(path, photo.base64, `Add front photo for ${l.title}`);
+        l.images.front = path;
+        photoNote = ' The photo is uploaded as the front image.';
+      } catch (e) { photoNote = ` The photo didn’t upload: ${e.message}`; }
+    }
+
+    cfg.listings.unshift(l);
+    fillNote = { id: l.id, unclear: r.unclear };
+    persist('Listing filled from the photo');
+    render(l.id);
+    say(`Filled in ${l.title}, ${l.grader} ${l.grade}. Check it below and add your price.${photoNote}`, 'up full');
+  } catch (e) {
+    say(e.message, 'down full');
+  }
+}
+
 async function uploadPhoto(file, l, side) {
   if (!getConn().token) { toast('Connect GitHub on the Publish tab before uploading photos.', 3000); return null; }
-  const slug = `${l.title}-${l.grader}${l.grade}`.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   toast('Resizing and uploading…', 10000);
   const photo = await preparePhoto(file);
-  const path = `img/${slug || l.id}-${side}.${photo.ext}`;
+  const path = `img/${slugFor(l)}-${side}.${photo.ext}`;
   await putFile(path, photo.base64, `Add ${side} photo for ${l.title}`);
   toast(`Uploaded ${path} (${photo.kb} KB). Save the listing, then Publish.`, 4000);
   return path;
@@ -252,7 +310,7 @@ function checkPrice(item) {
 
 /* ---------- panels ---------- */
 const STATUS = [['available', 'Available'], ['on_hold', 'On hold'], ['sold', 'Sold']];
-const GRADERS = ['PSA', 'CGC', 'BGS', 'TAG', 'ACE'];
+const GRADERS = ['PSA', 'CGC', 'BGS', 'TAG', 'ACE', 'SGC'];
 
 const LISTING_FIELDS = () => [
   { k: 'title', label: 'Title (card name)' }, { k: 'subtitle', label: 'Subtitle (set and number)' },
@@ -279,11 +337,11 @@ const INV_FIELDS = [
   { k: 'comps', label: 'Recent sales, one per line: date | price A$ | venue', type: 'lines', cols: ['date', 'aud', 'venue'], nums: ['aud'], full: true, rows: 8, hint: 'Dates as YYYY-MM-DD. Convert USD to AUD before pasting.' }
 ];
 
-function listEditor({ title, intro, key, fields, label, sub, blank, onSave, extra }) {
+function listEditor({ title, intro, key, fields, label, sub, blank, onSave, extra, top, bindTop }) {
   return function render(selId) {
     const arr = cfg[key] ??= [];
     const cur = arr.find(x => x.id === selId) || arr[0];
-    main.innerHTML = `<h1>${title}</h1><p>${intro}</p>
+    main.innerHTML = `<h1>${title}</h1><p>${intro}</p>${top ? top() : ''}
       <div class="split">
         <div class="items">
           <button type="button" class="btn btn-lamp btn-sm" id="newItem" style="display:flex">New</button>
@@ -297,6 +355,7 @@ function listEditor({ title, intro, key, fields, label, sub, blank, onSave, extr
         : '<p class="muted">Nothing here yet.</p>'}
       </div>`;
     $('#newItem').onclick = () => { const x = blank(); arr.unshift(x); persist('Added'); render(x.id); };
+    bindTop?.(render);
     main.querySelectorAll('.items [data-id]').forEach(b => b.onclick = () => render(b.dataset.id));
     if (!cur) return;
     $('#ed').onsubmit = e => {
@@ -337,7 +396,23 @@ const PANELS = {
     intro: 'What appears in Shop, On the table and the hero. Ticking Featured clears it on every other listing. Saving a listing with a tracked card offers to refresh its market median.',
     label: x => `${x.title || 'Untitled'} ${x.grader || ''} ${x.grade || ''}`, sub: x => `${STATUS.find(s => s[0] === x.status)?.[1] || ''} · ${fmtAUD(x.priceAUD)}${x.featured ? ' · Featured' : ''}`,
     blank: () => ({ id: uid('lst'), title: 'New slab', subtitle: '', grader: 'PSA', grade: '10', cert: '', priceAUD: null, status: 'available', onlyCopy: true, images: { front: '', back: '', edge: '' }, notes: '', provenance: [], ladder: [], featured: false, buyLink: '', listedAt: today() }),
+    top: () => `<div class="panel drop" id="photoFill">
+        <div><b>New listing from a photo</b><p class="hint">Upload a straight-on photo of the slab. Claude reads the label and fills in the card, set, grader, grade and cert. You add the price.</p></div>
+        <label class="btn btn-lamp" style="cursor:pointer">Choose photo<input type="file" accept="image/*" hidden id="photoFillInput"></label>
+        <p class="hint full" id="photoFillMsg" role="status" aria-live="polite"></p>
+      </div>`,
+    bindTop: render => {
+      const box = $('#photoFill'), input = $('#photoFillInput');
+      const go = file => file && fillFromPhoto(file, render);
+      input.onchange = () => { go(input.files[0]); input.value = ''; };
+      box.ondragover = e => { e.preventDefault(); box.classList.add('over'); };
+      box.ondragleave = () => box.classList.remove('over');
+      box.ondrop = e => { e.preventDefault(); box.classList.remove('over'); go([...e.dataTransfer.files].find(f => f.type.startsWith('image/'))); };
+    },
+    extra: l => fillNote?.id === l.id ? `<div class="full alert warn" role="status"><b>Filled from the photo</b>
+        <span>Check every field against the label${fillNote.unclear ? `. Claude wasn’t sure about: ${esc(fillNote.unclear)}` : ''}. Then add your price, ladder and notes, click Save, and Publish.</span></div>` : '',
     onSave: l => {
+      if (fillNote?.id === l.id) fillNote = null;
       if (l.featured) cfg.listings.forEach(x => { if (x !== l) x.featured = false; });
       if (l.status === 'sold' && !l.soldAt) l.soldAt = today();
       const item = cfg.inventory?.find(i => i.id === l.inventoryId);
@@ -534,6 +609,23 @@ function renderPublish() {
         <button class="btn btn-lamp" type="button" id="pubNow">Publish live</button>
         ${c.token ? '<button class="btn btn-text" type="button" id="forget">Forget token on this browser</button>' : ''}</div>
     </form>
+    <form class="panel form" id="ai" autocomplete="off" style="margin-top:var(--s-5)">
+      <h2 class="full" style="font-size:1.15rem">Photo reading (Claude)</h2>
+      <p class="full hint">Used by “New listing from a photo” on the Listings tab. Each photo costs about one to two US cents on your Anthropic account.</p>
+      <label class="field full"><span>Claude API key</span><input class="input" name="key" type="password" value="${esc(getKey())}" placeholder="sk-ant-…" spellcheck="false"></label>
+      <details class="full hint"><summary style="cursor:pointer">How to get a key (3 minutes, once)</summary>
+        <ol class="steps-list">
+          <li>Open <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com → Settings → API keys</a> and sign up or sign in.</li>
+          <li>Under <b>Billing</b>, add a card and some credit (US$5 covers a few hundred photos). Set a monthly spend limit if you like.</li>
+          <li>Back in <b>API keys</b>, click <b>Create key</b>, name it “DKsKards dashboard”, and copy it (it starts with <code>sk-ant-</code>).</li>
+          <li>Paste it above and click <b>Save and test</b>.</li>
+        </ol>
+        <p style="margin-top:8px">The key is stored only in this browser and only sent to Anthropic. Anyone using this browser could spend from it, so don’t save it on a shared computer. You can delete the key in the Console at any time.</p>
+      </details>
+      <p class="full" id="aiMsg" role="status"></p>
+      <div class="actions"><button class="btn btn-line" type="submit">Save and test</button>
+        ${getKey() ? '<button class="btn btn-text" type="button" id="forgetKey">Forget key on this browser</button>' : ''}</div>
+    </form>
     <div class="panel" style="padding:var(--s-5);display:grid;gap:var(--s-4);margin-top:var(--s-5)">
       <h2 style="font-size:1.15rem">Backups</h2>
       <div class="actions"><button class="btn btn-line" type="button" id="exp">Export config.json</button>
@@ -582,6 +674,17 @@ function renderPublish() {
     renderTokenAlert();
     publishLive();
   };
+  $('#ai').onsubmit = async e => {
+    e.preventDefault();
+    setKey(new FormData(e.target).get('key').trim());
+    const msg = $('#aiMsg');
+    msg.className = 'full'; msg.textContent = 'Testing…';
+    try {
+      const model = await testKey();
+      msg.className = 'full up'; msg.textContent = `Key works (${model}). Try “New listing from a photo” on the Listings tab.`;
+    } catch (err) { msg.className = 'full down'; msg.textContent = err.message; }
+  };
+  $('#forgetKey')?.addEventListener('click', () => { forgetKey(); toast('Claude key removed from this browser'); renderPublish(); });
   $('#forget')?.addEventListener('click', () => { forgetToken(); toast('Token removed from this browser'); renderTokenAlert(); renderPublish(); });
   $('#exp').onclick = exportConfig;
   $('#imp').onchange = async e => {
