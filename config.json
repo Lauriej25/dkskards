@@ -5110,7 +5110,7 @@
    "name": "Charizard ex (Special Illustration)",
    "set": "Obsidian Flames",
    "number": "223",
-   "era": "Scarlet & Violet",
+   "era": "Japanese",
    "grader": "PSA",
    "grade": "10",
    "pop": 7830,
@@ -5838,7 +5838,7 @@
    "name": "Mew ex (Special Illustration)",
    "set": "151",
    "number": "205",
-   "era": "Scarlet & Violet",
+   "era": "Japanese",
    "grader": "PSA",
    "grade": "10",
    "pop": 9214,
@@ -8200,7 +8200,7 @@
    "name": "Pikachu ex (Special Illustration)",
    "set": "Surging Sparks",
    "number": "238",
-   "era": "Scarlet & Violet",
+   "era": "Japanese",
    "grader": "PSA",
    "grade": "9",
    "pop": 3020,
@@ -9473,6 +9473,239 @@
  ],
  "listings": [
   {
+   "id": "lst_bulbasaur_mb10",
+   "title": "Bulbasaur",
+   "subtitle": "Pokémon Card 151 (Japanese, sv2a) Master Ball Reverse Holo #001",
+   "grader": "PSA",
+   "grade": "10",
+   "cert": "84082414",
+   "priceAUD": null,
+   "status": "draft",
+   "onlyCopy": true,
+   "images": {
+    "front": "img/bulbasaur-mb-psa10.jpg",
+    "back": "",
+    "edge": ""
+   },
+   "notes": "PSA label reads 2023 Pokemon SV2a JP #001, BULBASAUR, MASTER BALL REVERSE HOLO, GEM MT 10, matching the card (sv2a 001/165). Master Ball pattern holo is clean across the card. One of three consecutive certs (84082414 Bulbasaur, 84082415 Charmander, 84082416 Squirtle), graded together: all three starters are available as a set.",
+   "provenance": [
+    {
+     "date": "2023",
+     "event": "Released in Japanese Pokémon Card 151"
+    },
+    {
+     "date": "",
+     "event": "Graded PSA 10, cert 84082414"
+    }
+   ],
+   "ladder": [],
+   "featured": false,
+   "buyLink": "",
+   "listedAt": "2026-11-11",
+   "certVerified": false,
+   "sample": false,
+   "era": "Japanese",
+   "language": "Japanese"
+  },
+  {
+   "id": "lst_charmander_mb10",
+   "title": "Charmander",
+   "subtitle": "Pokémon Card 151 (Japanese, sv2a) Master Ball Reverse Holo #004",
+   "grader": "PSA",
+   "grade": "10",
+   "cert": "84082415",
+   "priceAUD": null,
+   "status": "draft",
+   "onlyCopy": true,
+   "images": {
+    "front": "img/charmander-mb-psa10.jpg",
+    "back": "",
+    "edge": ""
+   },
+   "notes": "PSA label reads 2023 Pokemon SV2a JP #004, CHARMANDER, MASTER BALL REVERSE HOLO, GEM MT 10, matching the card (sv2a 004/165). Master Ball pattern holo is clean across the card. One of three consecutive certs (84082414 Bulbasaur, 84082415 Charmander, 84082416 Squirtle), graded together: all three starters are available as a set.",
+   "provenance": [
+    {
+     "date": "2023",
+     "event": "Released in Japanese Pokémon Card 151"
+    },
+    {
+     "date": "",
+     "event": "Graded PSA 10, cert 84082415"
+    }
+   ],
+   "ladder": [],
+   "featured": false,
+   "buyLink": "",
+   "listedAt": "2026-11-11",
+   "certVerified": false,
+   "sample": false,
+   "era": "Japanese",
+   "language": "Japanese"
+  },
+  {
+   "id": "lst_squirtle_mb10",
+   "title": "Squirtle",
+   "subtitle": "Pokémon Card 151 (Japanese, sv2a) Master Ball Reverse Holo #007",
+   "grader": "PSA",
+   "grade": "10",
+   "cert": "84082416",
+   "priceAUD": null,
+   "status": "draft",
+   "onlyCopy": true,
+   "images": {
+    "front": "img/squirtle-mb-psa10.jpg",
+    "back": "",
+    "edge": ""
+   },
+   "notes": "PSA label reads 2023 Pokemon SV2a JP #007, SQUIRTLE, MASTER BALL REVERSE HOLO, GEM MT 10, matching the card (sv2a 007/165). Master Ball pattern holo is clean across the card. One of three consecutive certs (84082414 Bulbasaur, 84082415 Charmander, 84082416 Squirtle), graded together: all three starters are available as a set.",
+   "provenance": [
+    {
+     "date": "2023",
+     "event": "Released in Japanese Pokémon Card 151"
+    },
+    {
+     "date": "",
+     "event": "Graded PSA 10, cert 84082416"
+    }
+   ],
+   "ladder": [],
+   "featured": false,
+   "buyLink": "",
+   "listedAt": "2026-11-11",
+   "certVerified": false,
+   "sample": false,
+   "era": "Japanese",
+   "language": "Japanese"
+  },
+  {
+   "id": "lst_charizard_gx_dp10",
+   "title": "Charizard GX",
+   "subtitle": "Detective Pikachu (Japanese, SMP2) #007/024",
+   "grader": "PSA",
+   "grade": "10",
+   "cert": "82200293",
+   "priceAUD": null,
+   "status": "draft",
+   "onlyCopy": true,
+   "images": {
+    "front": "img/charizard-gx-dp-psa10.jpg",
+    "back": "",
+    "edge": ""
+   },
+   "notes": "PSA label reads 2019 P.M. JPN. Sun & Moon #7, CHARIZARD GX, DETECTIVE PIKACHU, GEM MT 10, matching the card (SMP2 007/024 RR). The movie-style art from the Japanese Detective Pikachu set.",
+   "provenance": [
+    {
+     "date": "2019",
+     "event": "Released in Japanese Detective Pikachu (SMP2)"
+    },
+    {
+     "date": "",
+     "event": "Graded PSA 10, cert 82200293"
+    }
+   ],
+   "ladder": [],
+   "featured": false,
+   "buyLink": "",
+   "listedAt": "2026-11-11",
+   "certVerified": false,
+   "sample": false,
+   "era": "Japanese",
+   "language": "Japanese"
+  },
+  {
+   "id": "lst_machamp_1st_raw",
+   "title": "Machamp",
+   "subtitle": "Base Set 1st Edition Holo #8/102",
+   "grader": "Raw",
+   "grade": "Heavily played",
+   "cert": "",
+   "priceAUD": null,
+   "status": "draft",
+   "onlyCopy": true,
+   "images": {
+    "front": "img/machamp-1st.jpg",
+    "back": "",
+    "edge": ""
+   },
+   "notes": "Ungraded. 1st Edition stamp present. Honest condition: a crease runs in from the left edge beside the Pokémon Power text, whitening on every edge and corner, and scratches across the holo. A well-loved copy that still shows off the 1999 holo. Sold as-is in the toploader shown.",
+   "provenance": [
+    {
+     "date": "1999",
+     "event": "Released in Base Set 1st Edition"
+    }
+   ],
+   "ladder": [],
+   "featured": false,
+   "buyLink": "",
+   "listedAt": "2026-11-11",
+   "certVerified": false,
+   "sample": false,
+   "era": "WOTC vintage",
+   "language": "English"
+  },
+  {
+   "id": "lst_pikachu_jungle_raw",
+   "title": "Pikachu",
+   "subtitle": "Jungle #60/64",
+   "grader": "Raw",
+   "grade": "Lightly played",
+   "cert": "",
+   "priceAUD": null,
+   "status": "draft",
+   "onlyCopy": true,
+   "images": {
+    "front": "img/pikachu-jungle.jpg",
+    "back": "",
+    "edge": ""
+   },
+   "notes": "Ungraded Jungle Pikachu, unlimited (no 1st Edition stamp). Light edge wear and a softened top-left corner; front surface is clean. Sold in the toploader shown.",
+   "provenance": [
+    {
+     "date": "1999",
+     "event": "Released in Jungle"
+    }
+   ],
+   "ladder": [],
+   "featured": false,
+   "buyLink": "",
+   "listedAt": "2026-11-11",
+   "certVerified": false,
+   "sample": false,
+   "era": "WOTC vintage",
+   "language": "English"
+  },
+  {
+   "id": "lst_team_rocket_1st_pack",
+   "title": "Team Rocket booster pack",
+   "subtitle": "1st Edition, Dark Gyarados art",
+   "grader": "Sealed",
+   "grade": "",
+   "cert": "",
+   "priceAUD": null,
+   "status": "draft",
+   "onlyCopy": true,
+   "images": {
+    "front": "img/team-rocket-pack.jpg",
+    "back": "img/team-rocket-pack-back.jpg",
+    "edge": ""
+   },
+   "notes": "Sealed 1st Edition Team Rocket booster pack, Dark Gyarados artwork, 11 cards. Back carries ISBN 0-7430-0025-0 and WOC06174. Front and back photos show the crimps and back seam; ask for more angles before buying.",
+   "provenance": [
+    {
+     "date": "2000",
+     "event": "Released in Team Rocket 1st Edition"
+    }
+   ],
+   "ladder": [],
+   "featured": false,
+   "buyLink": "",
+   "listedAt": "2026-11-11",
+   "certVerified": false,
+   "sample": false,
+   "era": "WOTC vintage",
+   "language": "English"
+  },
+  {
    "id": "lst_001",
    "inventoryId": "inv_001",
    "title": "Charizard",
@@ -9887,5 +10120,6 @@
    ]
   ]
  },
- "theme": "dark"
+ "theme": "dark",
+ "updatedAt": "2026-11-11T08:54:59.000Z"
 }

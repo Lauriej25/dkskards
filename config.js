@@ -212,6 +212,8 @@ export async function load({ admin = isAdmin() } = {}) {
   const cfg = { ...DEFAULTS, ...remote, ...(admin ? readLocal() : {}) };
   cfg.copy = { ...DEFAULTS.copy, ...cfg.copy };
   cfg.settings = { ...DEFAULTS.settings, ...cfg.settings };
+  // Drafts are being priced in the dashboard; only the owner's browser sees them.
+  if (!admin) cfg.listings = (cfg.listings || []).filter(l => l.status !== 'draft');
   return cfg;
 }
 
@@ -262,6 +264,11 @@ export function heat(item) {
 export const inventoryFor = (cfg, l) => (cfg.inventory || []).find(i => i.id === l?.inventoryId);
 export const forSale = cfg => (cfg.listings || []).filter(l => l.status !== 'sold');
 export const featured = cfg => forSale(cfg).find(l => l.featured) || forSale(cfg)[0];
+
+// Raw cards and sealed product use the grader field as their kind, with no cert.
+export const isGraded = l => !['Raw', 'Sealed'].includes(l?.grader);
+export const gradeText = l => isGraded(l) ? `${l.grader} ${l.grade}`.trim() : l.grader === 'Raw' ? `Raw${l.grade ? ` · ${l.grade}` : ''}` : 'Sealed';
+export const kindWord = l => l?.grader === 'Raw' ? 'card' : l?.grader === 'Sealed' ? 'pack' : 'slab';
 
 /* ---------- formatting ---------- */
 

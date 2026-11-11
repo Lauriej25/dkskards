@@ -1,6 +1,6 @@
 // home.js: the viewing room.
 import { boot, qs, ICONS, tileHTML, railArrows, mailto } from './app.js';
-import { featured, forSale, inventoryFor, change, heat, latest, fmtAUD, pctText, dirClass, escapeHtml, spark } from './config.js';
+import { featured, forSale, inventoryFor, change, heat, latest, fmtAUD, pctText, dirClass, escapeHtml, spark, gradeText } from './config.js';
 import { slabHTML, initSlabs, enableTilt, needsTiltPermission, lampSweep, scrollFlip } from './slab.js';
 
 const cfg = await boot('home');
@@ -70,7 +70,7 @@ function renderLadder(l) {
   const max = Math.max(...l.ladder.map(r => r[1]));
   qs('#ladder').innerHTML = l.ladder.map(([g, p], i) => {
     const mult = i ? `<em>×${(p / l.ladder[i - 1][1]).toFixed(1)}</em>` : '';
-    const own = g === `${l.grader} ${l.grade}`;
+    const own = g === gradeText(l);
     return `<li${own ? ' aria-current="true"' : ''} style="height:${Math.round(72 + 96 * Math.sqrt(p / max))}px"><span>${escapeHtml(g)}${own ? ' · ours' : ''}</span><b>${fmtAUD(p)}</b>${mult}</li>`;
   }).join('');
 }

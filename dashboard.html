@@ -67,6 +67,7 @@
     <div style="display:grid;gap:8px">
       <a class="btn btn-line btn-sm" href="index.html" target="_blank">Preview site ↗</a>
       <div id="tokenAlert"></div>
+      <div id="liveAlert"></div>
       <button class="btn btn-lamp btn-sm" type="button" id="publishTop">Publish live</button>
       <p class="hint" id="pubState" role="status" aria-live="polite"></p>
     </div>
@@ -76,18 +77,29 @@
 <div class="toast" id="toast" role="status"></div>
 
 <script type="module">
-import { load, save, DEFAULTS, ADMIN_KEY, STORE_KEY, escapeHtml as esc, fmtAUD, latest, median, contrast } from './config.js';
+import { load, save, readLocal, DEFAULTS, ADMIN_KEY, STORE_KEY, escapeHtml as esc, fmtAUD, latest, median, contrast } from './config.js';
 import { getConn, setConn, forgetToken, testConn, putFile, b64text, preparePhoto, pagesStatus } from './github.js';
 import { getKey, setKey, forgetKey, testKey, readSlab } from './reader.js';
 
 localStorage.setItem(ADMIN_KEY, '1');
+const PUBLISHED_KEY = 'dksKardsPublishedAt';
+
+// If the live config.json was published from somewhere else (another browser, or Claude) after this
+// browser's copy was saved, use it, unless this browser has edits that were never published.
+const local = readLocal();
+const live = await fetch('config.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : {})).catch(() => ({}));
+let liveIsNewer = false;
+if (local.listings && live.updatedAt && !(local.updatedAt >= live.updatedAt)) {
+  const unpublished = !local.updatedAt || local.updatedAt > (localStorage.getItem(PUBLISHED_KEY) || '');
+  if (unpublished) liveIsNewer = true;
+  else { localStorage.removeItem(STORE_KEY); localStorage.setItem(PUBLISHED_KEY, live.updatedAt); }
+}
+
 const cfg = structuredClone(await load({ admin: true }));
 const main = document.getElementById('main');
 const $ = (s, r = main) => r.querySelector(s);
 const uid = p => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const today = () => new Date().toISOString().slice(0, 10);
-
-const PUBLISHED_KEY = 'dksKardsPublishedAt';
 
 function toast(msg, ms = 1800) {
   const t = document.getElementById('toast');
@@ -161,12 +173,14 @@ function downloadReminder(expires) {
 /* ---------- publish to GitHub ---------- */
 async function publishLive() {
   if (!getConn().token) { show('publish'); toast('Connect GitHub first: paste your token below.', 3000); return; }
+  if (liveIsNewer && !confirm('Newer content is live that this browser hasn’t loaded. Publishing replaces it with what you see here. Publish anyway?')) return;
   const btn = document.getElementById('publishTop');
   btn.disabled = true; btn.textContent = 'Publishing…';
   try {
     const stamp = cfg.updatedAt || new Date().toISOString();
     await putFile('config.json', b64text(JSON.stringify(cfg, null, 1)), 'Update site content from the dashboard');
     localStorage.setItem(PUBLISHED_KEY, stamp);
+    liveIsNewer = false; document.getElementById('liveAlert').innerHTML = '';
     toast('Published. The live site updates in about a minute.', 3500);
     watchBuild();
   } catch (e) {
@@ -309,12 +323,12 @@ function checkPrice(item) {
 }
 
 /* ---------- panels ---------- */
-const STATUS = [['available', 'Available'], ['on_hold', 'On hold'], ['sold', 'Sold']];
-const GRADERS = ['PSA', 'CGC', 'BGS', 'TAG', 'ACE', 'SGC'];
+const STATUS = [['draft', 'Draft (hidden from visitors)'], ['available', 'Available'], ['on_hold', 'On hold'], ['sold', 'Sold']];
+const GRADERS = ['PSA', 'CGC', 'BGS', 'TAG', 'ACE', 'SGC', 'Raw', 'Sealed'];
 
 const LISTING_FIELDS = () => [
   { k: 'title', label: 'Title (card name)' }, { k: 'subtitle', label: 'Subtitle (set and number)' },
-  { k: 'grader', label: 'Grader', type: 'select', options: GRADERS }, { k: 'grade', label: 'Grade' },
+  { k: 'grader', label: 'Grader (or Raw / Sealed)', type: 'select', options: GRADERS }, { k: 'grade', label: 'Grade', hint: 'For a raw card, its condition, e.g. “Lightly played”. Leave empty for sealed.' },
   { k: 'cert', label: 'Cert number' }, { k: 'priceAUD', label: 'Our price (A$, all-in)', type: 'number' },
   { k: 'status', label: 'Status', type: 'select', options: STATUS },
   { k: 'inventoryId', label: 'Tracked card (for sales and median)', type: 'select', options: [['', 'None'], ...(cfg.inventory || []).map(i => [i.id, `${i.name} ${i.grader} ${i.grade}`])] },
@@ -709,6 +723,13 @@ function exportConfig() {
 document.getElementById('publishTop').onclick = publishLive;
 showPubState();
 renderTokenAlert();
+if (liveIsNewer) {
+  const el = document.getElementById('liveAlert');
+  el.innerHTML = `<div class="alert warn" role="alert"><b>Newer content is live</b>
+    <span>Something was published since this browser’s unpublished edits. Load it to see it here (your unpublished edits are dropped), or publish to replace it.</span>
+    <button class="btn btn-line" type="button" id="loadLive">Load the live version</button></div>`;
+  el.querySelector('#loadLive').onclick = () => { localStorage.removeItem(STORE_KEY); localStorage.setItem(PUBLISHED_KEY, live.updatedAt); location.reload(); };
+}
 
 /* ---------- tabs ---------- */
 const tabs = document.getElementById('tabs');

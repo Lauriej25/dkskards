@@ -1,5 +1,5 @@
 // slab.js: the lamp-and-tilt slab. Pointer tilt on desktop, gyroscope on phones, flip by button or scroll.
-import { escapeHtml, fmtAUD, fmtDate, latest, cardArt } from './config.js';
+import { escapeHtml, fmtAUD, fmtDate, latest, cardArt, gradeText, isGraded } from './config.js';
 
 export const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -17,29 +17,30 @@ export function setTilt(slab, x, y) {   // x,y in -1..1
   slab.style.setProperty('--foil-angle', `${x * 120}deg`);
 }
 
-const label = l => `${l.title}, ${l.subtitle}, ${l.grader} ${l.grade}.`;
+const label = l => `${l.title}, ${l.subtitle}, ${gradeText(l)}.`;
 
 // back: 'data' (cert, pop, median, last sales), 'photo' (back image if there is one), or false (tile, no flip)
 export function slabHTML(l, item, { back = 'data', eager = false } = {}) {
-  const img = l.images?.front || cardArt(l);
+  // A real photo already shows the slab and its label, so it fills the face instead of sitting under a drawn label.
+  const photo = l.images?.front, img = photo || cardArt(l);
   const backPhoto = back === 'photo' && l.images?.back;
   const sales = (item?.comps || []).slice(-3).reverse();
   const backFace = !back ? '' : `
     <div class="slab-face slab-back">${backPhoto ? `<img src="${escapeHtml(l.images.back)}" alt="">` : `
-      <h3>${escapeHtml(l.grader)} ${escapeHtml(l.grade)} · back label</h3>
-      <dl class="num">
+      <h3>${escapeHtml(gradeText(l))}${isGraded(l) ? ' · back label' : ''}</h3>
+      <dl class="num">${isGraded(l) ? `
         <div><dt>Cert</dt><dd>${escapeHtml(l.cert || '—')}</dd></div>
         <div><dt>Population</dt><dd>${item?.pop ? item.pop.toLocaleString('en-AU') : '—'}</dd></div>
-        <div><dt>Graded higher</dt><dd>${item ? (item.popHigher ?? 0).toLocaleString('en-AU') : '—'}</dd></div>
+        <div><dt>Graded higher</dt><dd>${item ? (item.popHigher ?? 0).toLocaleString('en-AU') : '—'}</dd></div>` : ''}
         <div><dt>Market median</dt><dd>${fmtAUD(latest(item))}</dd></div>
       </dl>
       ${sales.length ? `<ul class="back-sales num">${sales.map(s => `<li><span>${fmtDate(s.date, { day: 'numeric', month: 'short' })} · ${escapeHtml(s.venue)}</span><b>${fmtAUD(s.aud)}</b></li>`).join('')}</ul>` : ''}`}
     </div>`;
   return `
-  <figure class="slab" data-slab aria-label="${escapeHtml(label(l))}${back ? ' Use the button to turn it over.' : ''}">
+  <figure class="slab${photo ? ' has-photo' : ''}" data-slab aria-label="${escapeHtml(label(l))}${back ? ' Use the button to turn it over.' : ''}">
     <div class="slab-body">
       <div class="slab-face slab-front">
-        <div class="slab-label"><b>${escapeHtml(l.title)}</b><span>${escapeHtml(l.subtitle)}</span><span class="grade">${escapeHtml(l.grader)} ${escapeHtml(l.grade)}</span></div>
+        ${photo ? '' : `<div class="slab-label"><b>${escapeHtml(l.title)}</b><span>${escapeHtml(l.subtitle)}</span><span class="grade">${escapeHtml(gradeText(l))}</span></div>`}
         <div class="zoom-host"><img src="${escapeHtml(img)}" alt="" ${eager ? 'loading="eager" fetchpriority="high"' : 'loading="lazy"'} decoding="async"></div>
         <i class="slab-foil"></i><i class="slab-lamp"></i>
       </div>${backFace}

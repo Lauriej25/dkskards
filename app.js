@@ -1,5 +1,5 @@
 // app.js: shared chrome for every public page — nav, live strip, tab bar, search, footer, theme.
-import { load, THEME_KEY, escapeHtml, fmtAUD, pctText, forSale, inventoryFor, change, dirClass, spark } from './config.js';
+import { load, THEME_KEY, escapeHtml, fmtAUD, pctText, forSale, inventoryFor, change, dirClass, spark, gradeText } from './config.js';
 import { reduce, slabHTML } from './slab.js';
 
 const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -176,7 +176,7 @@ export function wireDialog(dlg) {
 
 function initSearch(cfg) {
   const items = [
-    ...forSale(cfg).map(l => ({ name: l.title, meta: `${l.subtitle} · ${l.grader} ${l.grade}`, right: fmtAUD(l.priceAUD), href: `card.html?id=${encodeURIComponent(l.id)}` })),
+    ...forSale(cfg).map(l => ({ name: l.title, meta: `${l.subtitle} · ${gradeText(l)}`, right: fmtAUD(l.priceAUD), href: `card.html?id=${encodeURIComponent(l.id)}` })),
     ...(cfg.inventory || []).map(i => ({ name: i.name, meta: `${i.set} · ${i.grader} ${i.grade} · market`, right: fmtAUD(i.history?.at(-1)?.aud), href: `market.html#${encodeURIComponent(i.id)}` }))
   ];
   const dlg = document.createElement('dialog');
@@ -224,11 +224,11 @@ export function tileHTML(cfg, l) {
     ${slabHTML(l, item, { back: false })}
     <div class="tile-info">
       <h3>${escapeHtml(l.title)}</h3>
-      <span class="sub">${escapeHtml(l.subtitle)} · ${escapeHtml(l.grader)} ${escapeHtml(l.grade)}</span>
+      <span class="sub">${escapeHtml(l.subtitle)} · ${escapeHtml(gradeText(l))}</span>
       <div class="tile-row"><span class="tile-price num">${fmtAUD(l.priceAUD)}</span>${spark(item, 30)}</div>
       <div class="tile-row">
         <span class="tile-change num ${dirClass(c30)}">${c30 == null ? '' : `30d ${pctText(c30)}`}</span>
-        <span class="tags">${l.status === 'on_hold' ? '<span class="tag">On hold</span>' : ''}${l.sample ? '<span class="tag">Sample</span>' : ''}</span>
+        <span class="tags">${l.status === 'draft' ? '<span class="tag tag-lamp">Draft</span>' : ''}${l.status === 'on_hold' ? '<span class="tag">On hold</span>' : ''}${l.sample ? '<span class="tag">Sample</span>' : ''}</span>
       </div>
       ${l.onlyCopy && l.status === 'available' ? `<span class="sub">${escapeHtml(cfg.copy.onlyCopy)}</span>` : ''}
     </div>

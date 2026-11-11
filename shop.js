@@ -6,13 +6,13 @@ import { initSlabs } from './slab.js';
 const cfg = await boot('shop');
 const rows = forSale(cfg).map(l => {
   const item = inventoryFor(cfg, l);
-  return { l, era: item?.era || 'Other', lang: item?.language || 'English', c30: change(item, 30), pop: item?.pop ?? Infinity };
+  return { l, era: item?.era || l.era || 'Other', lang: item?.language || l.language || 'English', c30: change(item, 30), pop: item?.pop ?? Infinity };
 });
 
 const facets = { fGrader: r => r.l.grader, fGrade: r => r.l.grade, fEra: r => r.era, fLang: r => r.lang };
 for (const [id, get] of Object.entries(facets)) {
-  const vals = [...new Set(rows.map(get))].sort((a, b) => isNaN(a) ? a.localeCompare(b) : b - a);
-  qs('#' + id).innerHTML = vals.map(v => `<label class="check"><input type="checkbox" value="${escapeHtml(v)}"> ${escapeHtml(id === 'fGrade' ? `Grade ${v}` : v)}</label>`).join('');
+  const vals = [...new Set(rows.map(get))].filter(Boolean).sort((a, b) => isNaN(a) ? a.localeCompare(b) : b - a);
+  qs('#' + id).innerHTML = vals.map(v => `<label class="check"><input type="checkbox" value="${escapeHtml(v)}"> ${escapeHtml(id === 'fGrade' && !isNaN(v) ? `Grade ${v}` : v)}</label>`).join('');
 }
 
 const checked = id => [...document.querySelectorAll(`#${id} input:checked`)].map(i => i.value);

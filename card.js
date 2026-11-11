@@ -1,6 +1,6 @@
 // card.js: the lot. Gallery with loupe, price block, sales scatter, grade ladder, notes, provenance.
 import { boot, qs, ICONS, tileHTML, railArrows, mailto, wireDialog } from './app.js';
-import { inventoryFor, forSale, change, salesIn, latest, median, fmtAUD, pctText, dirClass, escapeHtml, fmtDate, cardArt } from './config.js';
+import { inventoryFor, forSale, change, salesIn, latest, median, fmtAUD, pctText, dirClass, escapeHtml, fmtDate, cardArt, gradeText, isGraded, kindWord } from './config.js';
 import { slabHTML, initSlabs } from './slab.js';
 import { loupe } from './loupe.js';
 
@@ -21,15 +21,15 @@ if (!l) {
 function render() {
   const item = inventoryFor(cfg, l), sold = l.status === 'sold';
   const c30 = change(item, 30), med = latest(item);
-  const name = `${l.title}, ${l.subtitle}`, gradeText = `${l.grader} ${l.grade}`;
-  document.title = `${l.title} ${gradeText} · DKsKards`;
+  const name = `${l.title}, ${l.subtitle}`, gt = gradeText(l), kind = kindWord(l);
+  document.title = `${l.title} ${gt} · DKsKards`;
   const certUrl = l.cert && CERT_URL[l.grader]?.(encodeURIComponent(l.cert));
 
   root.innerHTML = `
   <div class="lot">
     <div class="gallery">
       <div id="stage">${slabHTML(l, item, { back: 'photo', eager: true })}</div>
-      <div class="edge-view panel" id="edgeView" hidden>${l.images?.edge ? `<img src="${escapeHtml(l.images.edge)}" alt="Edge of the slab">` : '<p>No edge photo for this slab yet. Ask us and we’ll send one.</p>'}</div>
+      <div class="edge-view panel" id="edgeView" hidden>${l.images?.edge ? `<img src="${escapeHtml(l.images.edge)}" alt="Edge of the ${kind}">` : `<p>No edge photo for this ${kind} yet. Ask us and we’ll send one.</p>`}</div>
       <div class="chips gallery-tabs" role="group" aria-label="View">
         <button class="chip" type="button" aria-pressed="true" data-view="front">Front</button>
         <button class="chip" type="button" aria-pressed="false" data-view="back">Back</button>
@@ -41,26 +41,27 @@ function render() {
     <div class="lot-info">
       <div>
         ${l.sample ? '<span class="tag" style="margin-bottom:12px">Sample listing</span>' : ''}
+        ${l.status === 'draft' ? '<span class="tag tag-lamp" style="margin-bottom:12px">Draft: only you can see this</span>' : ''}
         <h1>${escapeHtml(l.title)}</h1>
-        <p class="lot-sub">${escapeHtml(l.subtitle)} · ${escapeHtml(gradeText)}</p>
+        <p class="lot-sub">${escapeHtml(l.subtitle)} · ${escapeHtml(gt)}</p>
       </div>
-      <p class="cert-line num">
+      ${isGraded(l) ? `<p class="cert-line num">
         <span>Cert ${escapeHtml(l.cert || '—')}</span>
         ${l.certVerified ? `<span class="verified">${ICONS.check.replace('<svg', '<svg width="16" height="16"')} Checked by us</span>` : ''}
         ${certUrl ? `<a href="${certUrl}" target="_blank" rel="noopener">See it on ${escapeHtml(l.grader)} ↗</a>` : ''}
-      </p>
+      </p>` : ''}
       <div>
         <p class="lot-price num">${sold ? 'Sold' : fmtAUD(l.priceAUD)}</p>
         ${med ? `<p class="muted num" style="margin-top:8px">Market median ${fmtAUD(med)}</p>` : ''}
       </div>
       <dl class="facts num">
         <div class="panel"><dt>30 days</dt><dd class="${dirClass(c30)}">${pctText(c30)}</dd></div>
-        <div class="panel"><dt>Population</dt><dd>${item?.pop ? item.pop.toLocaleString('en-AU') : '—'}</dd></div>
-        <div class="panel"><dt>Graded higher</dt><dd>${item ? (item.popHigher ?? 0).toLocaleString('en-AU') : '—'}</dd></div>
+        ${isGraded(l) ? `<div class="panel"><dt>Population</dt><dd>${item?.pop ? item.pop.toLocaleString('en-AU') : '—'}</dd></div>
+        <div class="panel"><dt>Graded higher</dt><dd>${item ? (item.popHigher ?? 0).toLocaleString('en-AU') : '—'}</dd></div>` : ''}
       </dl>
       <div class="lot-actions">
         ${sold ? `<a class="btn btn-lamp" href="index.html#hunt">Ask us to find another</a>`
-               : `<button class="btn btn-lamp" type="button" data-buy="buy"${l.status === 'on_hold' ? ' disabled style="opacity:.6"' : ''}>${l.status === 'on_hold' ? 'On hold' : 'Buy this slab'}</button>`}
+               : `<button class="btn btn-lamp" type="button" data-buy="buy"${l.status === 'on_hold' ? ' disabled style="opacity:.6"' : ''}>${l.status === 'on_hold' ? 'On hold' : `Buy this ${kindWord(l)}`}</button>`}
         <button class="btn btn-text" type="button" data-buy="question">Ask a question</button>
       </div>
       <p class="muted small">${escapeHtml(cfg.copy.buyNote)} Prices include GST where applicable.${l.onlyCopy && !sold ? ` ${escapeHtml(cfg.copy.onlyCopy)}.` : ''}</p>
@@ -78,8 +79,8 @@ function render() {
       </div>
     </div>
     <p class="chart-summary num" id="salesSummary"></p>
-    <div class="chart-box"><canvas id="sales" role="img" aria-label="Recent sales for ${escapeHtml(l.title)} ${escapeHtml(gradeText)}"></canvas></div>
-    <p class="chart-note">Each dot is one sale of a ${escapeHtml(gradeText)} copy; the line is the market median. ${escapeHtml(cfg.copy.disclaimer)}</p>
+    <div class="chart-box"><canvas id="sales" role="img" aria-label="Recent sales for ${escapeHtml(l.title)} ${escapeHtml(gt)}"></canvas></div>
+    <p class="chart-note">Each dot is one sale of a ${escapeHtml(gt)} copy; the line is the market median. ${escapeHtml(cfg.copy.disclaimer)}</p>
   </section>` : ''}
 
   ${l.ladder?.length ? `
@@ -106,7 +107,7 @@ function render() {
   <div class="buybar" role="region" aria-label="Buy">
     <div class="num"><b>${sold ? 'Sold' : fmtAUD(l.priceAUD)}</b><small>All-in, insured shipping</small></div>
     ${sold ? '<a class="btn btn-lamp" href="index.html#hunt">Find another</a>'
-           : `<button class="btn btn-lamp" type="button" data-buy="buy"${l.status === 'on_hold' ? ' disabled style="opacity:.6"' : ''}>${l.status === 'on_hold' ? 'On hold' : 'Buy this slab'}</button>`}
+           : `<button class="btn btn-lamp" type="button" data-buy="buy"${l.status === 'on_hold' ? ' disabled style="opacity:.6"' : ''}>${l.status === 'on_hold' ? 'On hold' : `Buy this ${kindWord(l)}`}</button>`}
   </div>
 
   <dialog class="sheet" id="buySheet" aria-labelledby="buyTitle"></dialog>
@@ -124,8 +125,8 @@ function render() {
 function ladderHTML(l) {
   const max = Math.max(...l.ladder.map(r => r[1]));
   return l.ladder.map(([g, p], i) => {
-    const own = g === `${l.grader} ${l.grade}`;
-    return `<li${own ? ' aria-current="true"' : ''} style="height:${Math.round(72 + 96 * Math.sqrt(p / max))}px"><span>${escapeHtml(g)}${own ? ' · this slab' : ''}</span><b>${fmtAUD(p)}</b>${i ? `<em>×${(p / l.ladder[i - 1][1]).toFixed(1)}</em>` : ''}</li>`;
+    const own = g === gradeText(l);
+    return `<li${own ? ' aria-current="true"' : ''} style="height:${Math.round(72 + 96 * Math.sqrt(p / max))}px"><span>${escapeHtml(g)}${own ? ` · this ${kindWord(l)}` : ''}</span><b>${fmtAUD(p)}</b>${i ? `<em>×${(p / l.ladder[i - 1][1]).toFixed(1)}</em>` : ''}</li>`;
   }).join('');
 }
 
@@ -171,11 +172,11 @@ function initBuy() {
   const open = mode => {
     const checkout = mode === 'buy' && l.buyLink;
     sheet.innerHTML = `
-      <div class="sheet-head"><h2 id="buyTitle" style="font-size:1.25rem">${mode === 'buy' ? 'Buy this slab' : 'Ask a question'}</h2>
+      <div class="sheet-head"><h2 id="buyTitle" style="font-size:1.25rem">${mode === 'buy' ? `Buy this ${kindWord(l)}` : 'Ask a question'}</h2>
         <button class="icon-btn" type="button" data-close aria-label="Close">${ICONS.close}</button></div>
       <form class="sheet-body" id="buyForm" novalidate>
         <div class="panel" style="padding:14px 16px;display:flex;justify-content:space-between;gap:12px">
-          <span>${escapeHtml(l.title)}<br><small class="muted">${escapeHtml(l.subtitle)} · ${escapeHtml(l.grader)} ${escapeHtml(l.grade)} · cert ${escapeHtml(l.cert || '—')}</small></span>
+          <span>${escapeHtml(l.title)}<br><small class="muted">${escapeHtml(l.subtitle)} · ${escapeHtml(gradeText(l))}${isGraded(l) ? ` · cert ${escapeHtml(l.cert || '—')}` : ''}</small></span>
           <b class="num" style="color:var(--lamp-ink)">${fmtAUD(l.priceAUD)}</b>
         </div>
         ${checkout ? `
@@ -186,7 +187,7 @@ function initBuy() {
           <label class="field"><span>Email</span><input class="input" name="email" type="email" autocomplete="email" required></label>
           <label class="field"><span>${mode === 'buy' ? 'Anything we should know? (delivery suburb, timing)' : 'Your question'}</span>
             <textarea class="input" name="msg"${mode === 'question' ? ' required' : ''}></textarea></label>
-          <p class="muted small">${mode === 'buy' ? `We’ll hold the slab for 24 hours and email a payment link. ${escapeHtml(cfg.copy.buyNote)}` : 'We usually reply within one business day.'}</p>
+          <p class="muted small">${mode === 'buy' ? `We’ll hold the ${kindWord(l)} for 24 hours and email a payment link. ${escapeHtml(cfg.copy.buyNote)}` : 'We usually reply within one business day.'}</p>
           <p class="down small" id="buyErr" role="alert" hidden></p>
           <button class="btn btn-lamp" type="submit">${mode === 'buy' ? 'Send my order request' : 'Send question'}</button>`}
       </form>`;
@@ -196,8 +197,8 @@ function initBuy() {
       const f = e.target, err = qs('#buyErr', sheet);
       const bad = [...f.querySelectorAll('[required]')].find(i => !i.value.trim() || !i.checkValidity());
       if (bad) { err.hidden = false; err.textContent = bad.name === 'email' ? 'Add a valid email so we can reply.' : 'Fill in the highlighted field.'; bad.focus(); return; }
-      const subject = `${mode === 'buy' ? 'Order request' : 'Question'}: ${l.title} ${l.grader} ${l.grade} (cert ${l.cert || '—'})`;
-      const body = `${mode === 'buy' ? `I'd like to buy ${l.title} ${l.grader} ${l.grade}, listed at ${fmtAUD(l.priceAUD)}.` : `About ${l.title} ${l.grader} ${l.grade}:`}\n\n${f.msg.value}\n\n${f.name.value}\n${f.email.value}\n${location.href}`;
+      const subject = `${mode === 'buy' ? 'Order request' : 'Question'}: ${l.title} ${gradeText(l)}${isGraded(l) ? ` (cert ${l.cert || '—'})` : ''}`;
+      const body = `${mode === 'buy' ? `I'd like to buy ${l.title} ${gradeText(l)}, listed at ${fmtAUD(l.priceAUD)}.` : `About ${l.title} ${gradeText(l)}:`}\n\n${f.msg.value}\n\n${f.name.value}\n${f.email.value}\n${location.href}`;
       location.href = mailto(email, subject, body);
       f.innerHTML = `<p class="brief-confirm">Your email app should have opened with the message ready. Send it and we’ll reply within one business day.</p><button class="btn btn-line" type="button" data-close>Done</button>`;
     });
